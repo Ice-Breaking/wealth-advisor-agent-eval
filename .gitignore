@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# 虚拟环境
+.venv/
+venv/
+env/
+
+# 本地环境变量（含密钥，禁止提交）
+.env
+.env.local
+
+# 运行时产物（qwen-agent 生成的 workspace）
+workspace/
+*.log
+
+# 编辑器 / 系统
+.idea/
+.vscode/
+.DS_Store
