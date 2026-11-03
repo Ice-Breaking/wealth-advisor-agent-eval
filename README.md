@@ -122,6 +122,8 @@ python3.11 conciseness.py
 
 结果在 LangSmith 左侧 **Experiments** 页面查看，每次运行生成一个实验，可横向对比不同模型 / prompt 版本的分数。
 
+最新一次全量评估（qwen3.8-2.4t-a95b，8 用例）的结果与失分分析见 **[docs/evaluation-report.md](docs/evaluation-report.md)**。
+
 ## 已知限制
 
 - 关键词命中率会惩罚同义改写（例如答“上涨 6.32 点”而期望词是“涨跌”），需要语义判断时请改用 LLM-as-judge
