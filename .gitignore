@@ -18,6 +18,9 @@ env/
 workspace/
 *.log
 
+# deepeval 本地缓存（结果 deepeval_results.json 需要入库，缓存不需要）
+.deepeval/
+
 # 编辑器 / 系统
 .idea/
 .vscode/

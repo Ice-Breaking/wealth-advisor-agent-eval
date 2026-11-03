@@ -125,6 +125,9 @@ class WealthAdvisorState(TypedDict):
     
     # 输出
     final_response: Optional[str]  # 最终响应
+
+    # 工具轨迹（供 deepeval ToolCorrectness 等评估使用）
+    tools_called: Optional[List[Dict[str, Any]]]
     
     # 控制流
     error: Optional[str]  # 错误信息
@@ -323,9 +326,15 @@ def reactive_processing(state: WealthAdvisorState) -> WealthAdvisorState:
         first_response = chain.invoke({"input": user_query})
 
         # 检查是否需要调用工具
+        tools_called: List[Dict[str, Any]] = []
         if "[CALL_TOOL:上证指数查询]" in first_response:
             # 调用工具获取数据
             tool_result = query_shanghai_index("")
+            tools_called.append({
+                "name": "上证指数查询",
+                "input_parameters": {},
+                "output": tool_result,
+            })
 
             # 构建最终回答的提示
             FINAL_PROMPT = """你是一个财富管理投顾AI助手。
@@ -343,7 +352,8 @@ def reactive_processing(state: WealthAdvisorState) -> WealthAdvisorState:
 
         return {
             **state,
-            "final_response": final_response
+            "final_response": final_response,
+            "tools_called": tools_called,
         }
     except Exception as e:
         return {
@@ -587,6 +597,7 @@ def run_wealth_advisor(user_query: str, customer_id: str = "customer1") -> Dict[
         "market_data": None,
         "analysis_results": None,
         "final_response": None,
+        "tools_called": [],
         "error": None
     }
     

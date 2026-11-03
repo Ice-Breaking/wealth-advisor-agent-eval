@@ -75,6 +75,15 @@ python3.11 agent_automation_testing.py --summary agent-eval-4591bc7d
 
 # 切换模型对比
 AGENT_MODEL=deepseek-v4-pro-0813 python3.11 agent_automation_testing.py
+
+# deepeval 全量评估（4 条用例 × 5 指标，判官 qwen3.8-max-0902，约 40-60 分钟）
+python3.11 deepeval_wealth_advisor.py
+
+# deepeval CI 门控（阈值不达标则退出码非零）
+deepeval test run deepeval_wealth_advisor.py
+
+# 只跑第一条用例做冒烟
+DEEPEVAL_CASE_LIMIT=1 python3.11 deepeval_wealth_advisor.py
 ```
 
 分数明细见 LangSmith：smith.langchain.com → Experiments → `agent-eval-4591bc7d`。
@@ -116,7 +125,60 @@ AGENT_MODEL=deepseek-v4-pro-0813 python3.11 agent_automation_testing.py
 3. **判官在超长回答上退化**：回答 >7000 字时判官给出明显失真分数，截断到 2000 字后恢复稳定；同时 deepseek 系列在 openevals 结构化输出接口下会把解析失败算成 0 分，故判官统一选用 qwen3.8-max。
 4. **失败原因被兜底文案吞掉**（真实缺陷，已修复）：`analyze_data` / `generate_recommendations` 的异常与缺数据分支只写 `error` 不写 `final_response`，respond 节点于是返回"无法生成响应。请检查处理流程。"，真实原因完全丢失。修复后失败分支同时写入用户可读的 `final_response`（含异常类型）。该用例单独复跑即成功（2832 字），确认是偶发 LLM 失败而非逻辑缺陷。
 
-## 八、可观测性（LangFuse）
+## 八、语义判官评估（deepeval，含 Agent 行为指标）
+
+openevals 只能覆盖"文本好不好"，测不到"有没有调对工具、任务是否真的完成"。这一轮换 deepeval 做第二家判官，并补上两个 Agentic 指标。
+
+**判官接入**：deepeval 内置模型不含 DashScope，故按官方 `DeepEvalBaseLLM` 扩展点写了适配层 `langsmith-evaluation/dashscope_judge.py`——同步 `generate()` + 异步 `a_generate()` 双实现、`schema` 结构化输出透传、单次 300 秒超时 × 4 次重试，全程不依赖 OpenAI。
+
+**实验配置**：被测 `deepseek-v4.1-flash-1017`，判官 `qwen3.8-max-0902`（两者额度独立），4 条用例 × 5 指标 = 20 次判官调用，结果落盘 `langsmith-evaluation/deepeval_results.json`。
+
+| 用例 | 模式 | 相关性 | 幻觉 | 风险考虑 | 任务完成 | 工具正确 |
+|---|---|---|---|---|---|---|
+| 上证指数表现 | reactive | 1.00 | 1.00 | **0.00** | 1.00 | 1.00 |
+| ETF 概念解释 | reactive | 1.00 | 1.00 | 0.50 | 1.00 | 1.00 |
+| 10 年教育金规划 | deliberative | 1.00 | 1.00 | 1.00 | 0.95 | 1.00 |
+| 退休策略评估 | deliberative | 0.99 | 1.00 | 1.00 | 0.95 | 1.00 |
+| **平均** | — | **1.00** | **1.00** | **0.63** | **0.98** | **1.00** |
+
+### 三个只有这套指标才看得见的结论
+
+1. **风险考虑是最大短板，且失分点可解释**：上证用例 0.00（判官理由："仅提供点位、涨跌点数，未提及风险相关内容，也没有基于客户风险等级给出匹配建议"），ETF 用例 0.50（提了市场/跟踪误差/流动性风险，但"输入未提供客户风险等级，回答也未给出具体投资建议"）。深思熟虑链路 1.00（明确给出回撤、集中度、汇率风险与分阶段降风险方案）。这一维度在关键词评估和 openevals 里都没有对应指标。
+2. **工具调用 4/4 正确**：上证用例 `tools_called=[上证指数查询]`，其余 3 条为空，与 `expected_tools` 完全一致。说明虽然工具触发靠文本标记 `[CALL_TOOL:...]` 这种土办法，路由是稳定的；反过来也证明 `ToolCorrectness` 能真实判别"该调没调"（负向对照见下）。
+3. **任务完成度的扣分很具体**：两条深思熟虑用例都是 0.95——教育金那条"未明确逐字说明'10 年期'"，退休那条"额外覆盖子女教育金目标，略超出任务范围"。这种挑刺粒度对改进 prompt 有直接价值。
+
+### 与 openevals 的交叉验证
+
+| 维度 | openevals | deepeval | 是否一致 |
+|---|---|---|---|
+| 相关性 | relevance 1.00 | AnswerRelevancy 1.00 | 一致 |
+| 完整性 | response_completeness 1.00 / 1.00（教育金、退休） | TaskCompletion 0.95 / 0.95 | 基本一致，deepeval 更严格 |
+| 事实层面 | factuality 上证 **0.00** | Hallucination 上证 1.00 | **分歧** |
+
+分歧原因是**指标口径不同，不是判官打架**：openevals 的 factuality 查的是"是否给出精确数据却不标注来源"，deepeval 的 Hallucination 查的是"是否与给定 context 矛盾"——我们传入的 context 里已有"提供实时行情数据"，因此不构成矛盾。这提示：跨框架比分数前必须先对齐口径，同名指标不可直接横比。
+
+### 本轮踩到的工程坑（均已修复）
+
+| 问题 | 现象 | 修法 |
+|---|---|---|
+| 整轮预算过小 | deepeval 默认 per-task 180s + gather 27s，4×5 指标必然 `asyncio.TimeoutError` | `DEEPEVAL_PER_TASK_TIMEOUT_SECONDS_OVERRIDE=3600`，必须在 `import deepeval` 之前设置 |
+| 单点失败拖垮全轮 | 一次判官超时导致整轮无结果 | `ErrorConfig(ignore_errors=True)` + 逐条用例 `evaluate()` + 增量落盘 |
+| 长输入判官超时 | 3000 字回答的 statement 抽取 4×300s 全超时 | 先截断到 3000 字；仍失败的两条用 1500 字 + 600s 超时补测（JSON 里标了 `note`） |
+| 工具轨迹缺失 | 状态机不记录调用了什么工具 | 三份 `hybrid_advisor_langgraph.py` 副本新增 `tools_called` 字段（md5 校验一致） |
+| pytest 门控要求 OpenAI | 指标不传 `model` 时 deepeval 回落 GPTModel，报缺 key | 门控里每个 metric 显式传判官实例 |
+| 依赖硬冲突 | deepeval 要 `click<8.4.0`，huggingface-hub 要 `>=8.4.2` | 保留 click 8.3.3（`huggingface_hub` 导入正常），已用 `pip check` 记录 |
+| pydantic 被升级 | 2.9.2 → 2.14.2 | 实测 `langchain 1.3.14` / `langsmith 0.14.17` 的 `ChatOpenAI.invoke` 正常，无回退 |
+
+### CI 门控
+
+```bash
+cd langsmith-evaluation
+deepeval test run deepeval_wealth_advisor.py   # 通过则退出码 0
+```
+
+实测：2 个用例全 PASSED（相关性 1.0 / 幻觉 1.0 / 任务完成 1.0），`EXIT_CODE=0`；另用"应调工具但未调"的负向对照验证门控确实生效，`EXIT_CODE=1`。门控覆盖"回答切题 + 无幻觉 + 完成任务 + 选对工具"四类失败模式，可直接接 CI。
+
+## 九、可观测性（LangFuse）
 
 `langfuse-observability/hybrid_advisor_qwen_agent_langfuse.py` 已接入 LangFuse（US 区域），实测可在控制台看到完整 trace：`wealth_advisor_query`（span）→ `gui_query`（generation，含 input / output / 5 项 metadata / 延迟）。
 
@@ -131,7 +193,9 @@ AGENT_MODEL=deepseek-v4-pro-0813 python3.11 agent_automation_testing.py
 
 另修复：模型从 `qwen-flash`（原生 DashScope SDK，不支持 qwen3.8）改为走 OpenAI 兼容接口；`WebUI` 改惰性导入，使命令行调用不再依赖 gradio。
 
-## 九、环境依赖备注
+## 十、环境依赖备注
 
-- `openevals==0.2.2`、`langfuse==4.14.4`、`qwen-agent==0.0.34`、`soundfile` 为本次新增/补齐依赖；`requirements.txt` 中的版本 pin 已落后于实际环境，安装时不要整体套用，否则会降级 `langchain 1.3.14`。
+- `openevals==0.2.2`、`langfuse==4.14.4`、`qwen-agent==0.0.34`、`deepeval==4.3.2`、`soundfile` 为本次新增/补齐依赖；`requirements.txt` 中的版本 pin 已落后于实际环境，安装时不要整体套用，否则会降级 `langchain 1.3.14`。
 - 若 `qwen-agent` 报缺 `modelscope_studio`，只在需要 GUI 时安装 `qwen-agent[gui]`，命令行链路不需要。
+- **deepeval 的连锁依赖变更**（安装前已 `pip freeze` 快照比对）：`pydantic 2.9.2 → 2.14.2`、`rich 15.0.0 → 14.3.4`、`click 8.4.2 → 8.3.3`。其中 click 与 `huggingface-hub`（要求 `>=8.4.2`）存在无法同时满足的版本约束，因 `deepeval test run` 依赖 click 而未 `huggingface_hub`，选择保留 8.3.3 并实测其导入正常；`pydantic` 升级后 `langchain` / `langsmith` 的 `ChatOpenAI.invoke` 实测正常。
+- deepeval 判官不需要 `OPENAI_API_KEY`：所有指标显式传入 `dashscope_judge.get_judge()`，只有忘记传 `model` 时 deepeval 才会回落到默认 GPTModel 并要求该 key。
