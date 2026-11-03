@@ -393,6 +393,7 @@ def analyze_data(state: WealthAdvisorState) -> WealthAdvisorState:
             return {
                 **state,
                 "error": "分析阶段缺少市场数据",
+                "final_response": "抱歉，深度分析阶段缺少必要的市场数据，暂时无法给出分析结论，请稍后重试。",
             }
         
         # 准备提示
@@ -418,6 +419,7 @@ def analyze_data(state: WealthAdvisorState) -> WealthAdvisorState:
         return {
             **state,
             "error": f"分析阶段出错: {str(e)}",
+            "final_response": f"抱歉，深度分析阶段出现异常（{type(e).__name__}），暂时无法给出分析结论，请稍后重试。",
         }
 
 # 生成建议 - 根据分析结果提供投资建议
@@ -431,6 +433,7 @@ def generate_recommendations(state: WealthAdvisorState) -> WealthAdvisorState:
             return {
                 **state,
                 "error": "建议生成阶段缺少分析结果",
+                "final_response": "抱歉，生成投资建议时缺少分析结果，暂时无法给出建议，请稍后重试。",
             }
         
         # 准备提示
@@ -456,6 +459,7 @@ def generate_recommendations(state: WealthAdvisorState) -> WealthAdvisorState:
         return {
             **state,
             "error": f"建议生成阶段出错: {str(e)}",
+            "final_response": f"抱歉，生成投资建议时出现异常（{type(e).__name__}），暂时无法给出建议，请稍后重试。",
         }
 
 # 创建智能体工作流
