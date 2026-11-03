@@ -9,7 +9,7 @@ OpenEvals 评估器使用 - 投顾助手评估示例
 import os
 from langsmith import Client
 from langsmith.evaluation import evaluate
-from langchain_community.chat_models import ChatTongyi
+from langchain_openai import ChatOpenAI
 from openevals.llm import create_llm_as_judge
 from openevals.prompts import (
     ANSWER_RELEVANCE_PROMPT,
@@ -98,11 +98,17 @@ def evaluate_wealth_advisor():
             }
     
     # 2. 创建评估 LLM
-    eval_llm = ChatTongyi(
-        model_name="qwen-flash",
-        dashscope_api_key=os.getenv("DASHSCOPE_API_KEY"),
-        temperature=0
+    # 判官模型可通过 JUDGE_MODEL 环境变量切换；统一走 DashScope OpenAI 兼容接口，
+    # 与 Agent 共用同一套可用额度（qwen-flash 免费额度用尽后改由此接口调用）
+    JUDGE_MODEL = os.getenv("JUDGE_MODEL", "qwen3.8-2.4t-a95b")
+    eval_llm = ChatOpenAI(
+        model=JUDGE_MODEL,
+        api_key=os.getenv("DASHSCOPE_API_KEY"),
+        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+        temperature=0,
+        timeout=120,
     )
+    print(f"  判官模型: {JUDGE_MODEL}")
     
     # 3. 创建投顾助手专用的自定义评估器（参考 langsmith_evaluation.py）
     

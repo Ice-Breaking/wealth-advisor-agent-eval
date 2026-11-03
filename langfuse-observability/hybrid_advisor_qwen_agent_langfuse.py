@@ -30,8 +30,9 @@ from datetime import datetime
 from typing import Dict, List, Any, Optional
 import dashscope
 from qwen_agent.agents import Assistant
-from qwen_agent.gui import WebUI
 from qwen_agent.tools.base import BaseTool, register_tool
+# 注意：WebUI 只在 GUI 模式下按需导入（qwen_agent.gui 依赖 gradio/modelscope_studio，
+# 命令行调用不需要，缺失时不应阻塞模块加载）
 
 # ====== LangFuse 导入和初始化 ======
 
@@ -68,7 +69,9 @@ if HAS_LANGFUSE:
                 public_key=langfuse_public_key,
                 host=langfuse_base_url,
                 flush_at=1,  # 每次事件后立即发送（默认是批量发送）
-                flush_interval=1  # 每秒检查一次（默认是10秒）
+                flush_interval=1,  # 每秒检查一次（默认是10秒）
+                # 跨区域访问（如 US 区域）延迟较高，默认 5 秒容易读超时导致事件丢弃
+                timeout=30,
             )
             print(f"  [提示] LangFuse 监测已启用 (Host: {langfuse_base_url})")
             print(f"  [提示] LangFuse 导出错误将被静默处理，不影响主流程")
@@ -85,6 +88,9 @@ if HAS_LANGFUSE:
 DASHSCOPE_API_KEY = os.getenv("DASHSCOPE_API_KEY")
 dashscope.api_key = DASHSCOPE_API_KEY
 dashscope.timeout = 30
+
+# 被测模型：可通过 AGENT_MODEL 环境变量切换
+AGENT_MODEL = os.getenv("AGENT_MODEL", "qwen3.8-2.4t-a95b")
 
 # 示例客户画像数据
 SAMPLE_CUSTOMER_PROFILES = {
@@ -275,9 +281,9 @@ class TracedAssistant(Assistant):
                             if langfuse:
                                 input_value = user_query if user_query else str(messages)[:500]
                                 print(f"[DEBUG] 准备设置 input: {input_value[:100]}")
-                                langfuse.update_current_span(
+                                langfuse.update_current_generation(
                                     input=input_value,
-                                    model="qwen-flash",
+                                    model=AGENT_MODEL,
                                     metadata={
                                         "customer_id": self.customer_id,
                                         "risk_tolerance": self.customer_profile.get("risk_tolerance", "unknown"),
@@ -363,7 +369,7 @@ class TracedAssistant(Assistant):
                             if langfuse:
                                 output_value = final_output if final_output else "响应已生成"
                                 print(f"[DEBUG] 准备设置 output: {output_value[:100]}")
-                                langfuse.update_current_span(
+                                langfuse.update_current_generation(
                                     output=output_value,
                                     metadata={
                                         "response_length": len(final_output),
@@ -411,9 +417,14 @@ def init_wealth_advisor_agent(customer_profile: Dict[str, Any],
                               enable_tracing: bool = True) -> Assistant:
     """初始化财富顾问智能体"""
     llm_cfg = {
-        'model': 'qwen-flash',
-        'timeout': 30,
-        'retry_count': 3,
+        'model': AGENT_MODEL,
+        # 走 DashScope 的 OpenAI 兼容接口：qwen3.8 等新模型只在兼容接口提供，
+        # 原生 dashscope SDK 会报 "url error"；model_server 以 http 开头时
+        # qwen_agent 会自动选择 TextChatAtOAI（OpenAI 协议）
+        'model_server': 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+        'api_key': DASHSCOPE_API_KEY,
+        # qwen_agent 只识别 generate_cfg，旧的 timeout/retry_count 键会被静默忽略
+        'generate_cfg': {'max_retries': 3},
     }
     
     try:
@@ -505,7 +516,7 @@ def run_wealth_advisor(user_query: str, customer_id: str = "customer1") -> Dict[
                         if langfuse:
                             langfuse.update_current_span(
                                 metadata={
-                                    "model": "qwen-flash",
+                                    "model": AGENT_MODEL,
                                     "customer_id": customer_id,
                                     "risk_tolerance": customer_profile.get("risk_tolerance", "unknown"),
                                     "investment_horizon": customer_profile.get("investment_horizon", "unknown"),
@@ -517,26 +528,29 @@ def run_wealth_advisor(user_query: str, customer_id: str = "customer1") -> Dict[
                     except Exception:
                         pass  # metadata 设置失败不影响主流程
                 
-                return _run_agent_internal(agent, messages, customer_id, customer_profile)
-            
-            result = _traced_run()
-            
-            # 更新输出 metadata
-            if get_client:
-                try:
-                    langfuse = get_client()
-                    if langfuse:
-                        langfuse.update_current_span(
-                            metadata={
-                                "response_length": len(result.get("final_response", "")),
-                                "elapsed_time": result.get("elapsed_time", 0),
-                                "has_error": bool(result.get("error"))
-                            }
-                        )
-                except Exception:
-                    pass
-            
-            return result
+                result = _run_agent_internal(agent, messages, customer_id, customer_profile)
+
+                # 输出 metadata 必须在 span 内部更新：_traced_run 返回后 span 已结束，
+                # 在外部调用 update_current_span 会因无 active span 而静默失效
+                if get_client:
+                    try:
+                        langfuse = get_client()
+                        if langfuse:
+                            final_response = result.get("final_response", "") or ""
+                            langfuse.update_current_span(
+                                output=final_response,
+                                metadata={
+                                    "response_length": len(final_response),
+                                    "elapsed_time": result.get("elapsed_time", 0),
+                                    "has_error": bool(result.get("error"))
+                                }
+                            )
+                    except Exception:
+                        pass
+
+                return result
+
+            return _traced_run()
             
         except Exception as e:
             print(f"  [警告] LangFuse 追踪失败: {e}，继续执行")
@@ -570,8 +584,10 @@ def app_gui(customer_id: str = "customer1"):
         
         print(f"客户类型: {customer_profile['risk_tolerance']} 投资者")
         print("Web 界面准备就绪，正在启动服务...")
-        
-        # 启动 Web 界面
+
+        # 启动 Web 界面（GUI 依赖在此按需导入）
+        from qwen_agent.gui import WebUI
+
         WebUI(
             agent,
             chatbot_config=chatbot_config
