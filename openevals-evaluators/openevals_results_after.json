@@ -1,0 +1,128 @@
+{
+  "project": "wealth-advisor-openevals-after-1103-2255-c437e4d7",
+  "mode": "quality",
+  "judge_model": "deepseek-v4-pro-0813",
+  "regraded_at": "2026-11-03 23:31:20",
+  "cases": [
+    {
+      "query": "我想为子女准备教育金，请帮我设计一个10年期的投资计划。",
+      "node_trace": [
+        "assess",
+        "collect_data",
+        "analyze",
+        "recommend",
+        "respond"
+      ],
+      "answer_chars": 834,
+      "scores": {
+        "relevance": 1.0,
+        "conciseness": 0.4,
+        "helpfulness": 0.9,
+        "factuality": 0.95,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 0.75,
+        "trajectory_strict": 1.0
+      }
+    },
+    {
+      "query": "考虑到我的退休目标，请评估我当前的投资策略并提供优化建议。",
+      "node_trace": [
+        "assess",
+        "collect_data",
+        "analyze",
+        "recommend",
+        "respond"
+      ],
+      "answer_chars": 628,
+      "scores": {
+        "relevance": 1.0,
+        "conciseness": 0.35,
+        "helpfulness": 0.85,
+        "factuality": 0.9,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 0.75,
+        "trajectory_strict": 1.0
+      }
+    },
+    {
+      "query": "根据当前市场情况，我应该如何调整投资组合以应对可能的经济衰退？",
+      "node_trace": [
+        "assess",
+        "collect_data",
+        "analyze",
+        "recommend",
+        "respond"
+      ],
+      "answer_chars": 590,
+      "scores": {
+        "relevance": 1.0,
+        "conciseness": 0.35,
+        "helpfulness": 0.9,
+        "factuality": 1.0,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 0.25,
+        "trajectory_strict": 1.0
+      }
+    },
+    {
+      "query": "请解释一下什么是ETF？",
+      "node_trace": [
+        "assess",
+        "reactive",
+        "respond"
+      ],
+      "answer_chars": 241,
+      "scores": {
+        "relevance": 1.0,
+        "conciseness": 0.7,
+        "helpfulness": 0.95,
+        "factuality": 1.0,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 1.0,
+        "trajectory_strict": 1.0
+      }
+    },
+    {
+      "query": "我的投资组合中科技股占比是多少？",
+      "node_trace": [
+        "assess",
+        "reactive",
+        "respond"
+      ],
+      "answer_chars": 206,
+      "scores": {
+        "relevance": 0.9,
+        "conciseness": 0.3,
+        "helpfulness": 0.7,
+        "factuality": 1.0,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 0.67,
+        "trajectory_strict": 1.0
+      }
+    },
+    {
+      "query": "今天上证指数的表现如何？",
+      "node_trace": [
+        "assess",
+        "reactive",
+        "respond"
+      ],
+      "answer_chars": 143,
+      "scores": {
+        "relevance": 0.85,
+        "conciseness": 0.3,
+        "helpfulness": 0.9,
+        "factuality": 1.0,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 1.0,
+        "trajectory_strict": 1.0
+      }
+    }
+  ]
+}

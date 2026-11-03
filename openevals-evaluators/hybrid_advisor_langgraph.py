@@ -128,6 +128,9 @@ class WealthAdvisorState(TypedDict):
 
     # 工具轨迹（供 deepeval ToolCorrectness 等评估使用）
     tools_called: Optional[List[Dict[str, Any]]]
+
+    # 节点轨迹（供 openevals 轨迹评估验证分支路由是否按设计执行）
+    node_trace: Optional[List[str]]
     
     # 控制流
     error: Optional[str]  # 错误信息
@@ -212,11 +215,13 @@ ANALYSIS_PROMPT = """你是一个财富管理投顾AI助手的分析引擎。请
 5. 预期结果和回报预测
 
 以JSON格式返回分析结果，包含以下字段:
-- market_assessment: 市场评估
-- portfolio_analysis: 投资组合分析
-- recommendations: 投资建议列表
-- risk_analysis: 风险分析
-- expected_outcomes: 预期结果
+- market_assessment: 市场评估（不超过 100 字）
+- portfolio_analysis: 投资组合分析（不超过 120 字）
+- recommendations: 投资建议列表（每条不超过 50 字，最多 5 条）
+- risk_analysis: 风险分析（不超过 100 字）
+- expected_outcomes: 预期结果（不超过 80 字）
+
+要求：每个字段聚焦结论与依据，不重复展开同一风险点，不堆砌免责声明。
 """
 
 RECOMMENDATION_PROMPT = """你是一个财富管理投顾AI助手。请根据深入分析结果，为客户准备最终的咨询建议。
@@ -229,14 +234,24 @@ RECOMMENDATION_PROMPT = """你是一个财富管理投顾AI助手。请根据深
 分析结果:
 {analysis_results}
 
-请提供专业、个性化且详细的投资建议，语言应友好易懂，避免过多专业术语。建议应包括:
-1. 总体投资策略
-2. 具体行动步骤
-3. 资产配置建议
-4. 风险管理策略
-5. 时间框架
-6. 预期收益
-7. 后续跟进计划
+请提供专业、个性化且精炼的投资建议，语言应友好易懂，避免过多专业术语。
+
+输出结构（严格遵守）：
+1. 结论先行：用 3-5 句话给出总体判断与核心建议，不超过 200 字
+2. 分点要点：按下列维度各写 1-2 条要点，每条不超过 50 字
+   - 总体投资策略
+   - 具体行动步骤
+   - 资产配置建议
+   - 风险管理策略
+   - 时间框架
+   - 预期收益
+   - 后续跟进计划
+3. 风险适配：末尾用一句话说明建议与客户风险等级、投资期限的匹配关系
+
+硬性约束：
+- 全文不超过 900 字
+- 不重复罗列同一风险点，不堆砌免责声明
+- 涉及具体数字时说明其为模拟测算
 
 返回格式应为自然语言文本，适合直接呈现给客户。
 """
@@ -248,7 +263,11 @@ def query_shanghai_index(_: str = "") -> str:
     price = "3125.62"
     change = "6.32"
     pct = "0.20"
-    result = f"{name} 当前点位: {price}，涨跌: {change}，涨跌幅: {pct}%"
+    # 显式标注数据性质：此前回答引用精确点位却未声明来源，被判官判定为"来源不明的精确数据"
+    result = (
+        f"{name} 当前点位: {price}，涨跌: {change}，涨跌幅: {pct}%"
+        f"（模拟数据，非实时行情，仅供参考，不构成投资建议）"
+    )
     print('result=', result)
     return result
 
@@ -305,6 +324,8 @@ def reactive_processing(state: WealthAdvisorState) -> WealthAdvisorState:
         }
 
         # 构建提示模板
+        # 改进点：把客户风险画像带入 prompt —— 此前反应式链路完全不看客户信息，
+        # 导致 RiskConsideration 在上证（0.00）与 ETF（0.50）用例失分
         REACTIVE_AGENT_PROMPT = """你是一个财富管理投顾AI助手，请根据用户的问题回答。
 
 你可以使用以下工具：
@@ -313,17 +334,33 @@ def reactive_processing(state: WealthAdvisorState) -> WealthAdvisorState:
 如果用户询问上证指数相关信息，请在回答中包含 [CALL_TOOL:上证指数查询] 标记。
 如果不需要使用工具，直接回答用户问题即可。
 
+客户信息: {customer_profile}
+
 用户问题: {input}
+
+要求：
+1. 直接回答问题，不要复述问题
+2. 涉及具体数据时说明数据来源性质
+3. 回答末尾用一句话说明该结论与客户风险等级、投资期限的适配关系
+4. 全文不超过 400 字
 
 请提供专业、简洁、准确的回答。
 """
 
         user_query = state["user_query"]
 
+        # 客户画像压缩成一行文本，供 prompt 注入（缺字段时回退为"未知"）
+        profile = state.get("customer_profile") or {}
+        profile_text = (
+            f"风险等级: {profile.get('risk_tolerance', '未知')}；"
+            f"投资期限: {profile.get('investment_horizon', '未知')}；"
+            f"投资偏好: {'、'.join(profile.get('investment_preferences') or []) or '未知'}"
+        )
+
         # 第一轮：让LLM决定是否需要工具
         prompt = ChatPromptTemplate.from_template(REACTIVE_AGENT_PROMPT)
         chain = prompt | llm | StrOutputParser()
-        first_response = chain.invoke({"input": user_query})
+        first_response = chain.invoke({"input": user_query, "customer_profile": profile_text})
 
         # 检查是否需要调用工具
         tools_called: List[Dict[str, Any]] = []
@@ -337,16 +374,24 @@ def reactive_processing(state: WealthAdvisorState) -> WealthAdvisorState:
             })
 
             # 构建最终回答的提示
+            # 改进点：强制首句结论 + 明确标注模拟数据 + 结合客户风险画像（三个改进点集中在此）
             FINAL_PROMPT = """你是一个财富管理投顾AI助手。
 
+客户信息: {customer_profile}
 用户问题: {input}
 工具返回数据: {tool_result}
 
-请根据工具返回的数据，为用户提供专业、简洁的回答。
+要求：
+1. 首句直接给出结论（点位、涨跌点数、涨跌幅）
+2. 明确说明该数据为模拟数据、仅供参考，不构成投资建议
+3. 末尾用一句话说明该行情对客户当前配置（风险等级/投资期限）的含义
+4. 全文不超过 300 字
 """
             final_prompt = ChatPromptTemplate.from_template(FINAL_PROMPT)
             final_chain = final_prompt | llm | StrOutputParser()
-            final_response = final_chain.invoke({"input": user_query, "tool_result": tool_result})
+            final_response = final_chain.invoke(
+                {"input": user_query, "tool_result": tool_result, "customer_profile": profile_text}
+            )
         else:
             final_response = first_response.replace("[CALL_TOOL:上证指数查询]", "").strip()
 
@@ -473,6 +518,23 @@ def generate_recommendations(state: WealthAdvisorState) -> WealthAdvisorState:
         }
 
 # 创建智能体工作流
+def _with_trace(name: str, fn):
+    """给节点套一层轨迹采集。
+
+    放在 add_node 这一层统一包装，而不是在 6 个节点函数里各写一行：
+    diff 更小、不会漏改，也便于三份副本保持完全一致。
+    节点名用状态图里的短名（assess/reactive/...），与路由分支名同构。
+    """
+    def wrapper(state: WealthAdvisorState) -> WealthAdvisorState:
+        result = fn(state) or {}
+        merged = {**state, **result}
+        merged["node_trace"] = list(state.get("node_trace") or []) + [name]
+        return merged
+
+    wrapper.__name__ = f"traced_{name}"
+    return wrapper
+
+
 def create_wealth_advisor_workflow() -> StateGraph:
     """创建财富顾问混合智能体工作流"""
     
@@ -480,11 +542,11 @@ def create_wealth_advisor_workflow() -> StateGraph:
     workflow = StateGraph(WealthAdvisorState)
     
     # 添加节点，每个节点都确保返回完整的状态
-    workflow.add_node("assess", assess_query)
-    workflow.add_node("reactive", reactive_processing)
-    workflow.add_node("collect_data", collect_data)
-    workflow.add_node("analyze", analyze_data)
-    workflow.add_node("recommend", generate_recommendations)
+    workflow.add_node("assess", _with_trace("assess", assess_query))
+    workflow.add_node("reactive", _with_trace("reactive", reactive_processing))
+    workflow.add_node("collect_data", _with_trace("collect_data", collect_data))
+    workflow.add_node("analyze", _with_trace("analyze", analyze_data))
+    workflow.add_node("recommend", _with_trace("recommend", generate_recommendations))
     
     # 定义一个显式的响应节点函数
     def respond_function(state: WealthAdvisorState) -> WealthAdvisorState:
@@ -498,7 +560,7 @@ def create_wealth_advisor_workflow() -> StateGraph:
             }
         return state
     
-    workflow.add_node("respond", respond_function)
+    workflow.add_node("respond", _with_trace("respond", respond_function))
     
     # 设置入口点
     workflow.set_entry_point("assess")
@@ -598,6 +660,7 @@ def run_wealth_advisor(user_query: str, customer_id: str = "customer1") -> Dict[
         "analysis_results": None,
         "final_response": None,
         "tools_called": [],
+        "node_trace": [],
         "error": None
     }
     

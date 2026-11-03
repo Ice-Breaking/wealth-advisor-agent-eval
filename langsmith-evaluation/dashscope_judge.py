@@ -36,7 +36,9 @@ from deepeval.models.base_model import DeepEvalBaseLLM
 from openai import AsyncOpenAI, OpenAI
 from pydantic import BaseModel
 
-DEFAULT_MODEL = "qwen3.8-max-0902"
+# qwen3.8-max-0902 的免费额度已耗尽（403 Free quota exhausted），
+# 改为可通过 JUDGE_MODEL 切换；默认仍是结构化输出最稳的 qwen3.8-max
+DEFAULT_MODEL = os.getenv("JUDGE_MODEL", "qwen3.8-max-0902")
 BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
 

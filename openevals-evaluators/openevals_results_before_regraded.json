@@ -1,0 +1,98 @@
+{
+  "project": "openevals_baseline_outputs.json",
+  "mode": "quality",
+  "judge_model": "deepseek-v4-pro-0813",
+  "regraded_at": "2026-11-03 23:53:11",
+  "cases": [
+    {
+      "query": "今天上证指数的表现如何？",
+      "node_trace": null,
+      "answer_chars": 72,
+      "scores": {
+        "relevance": 1.0,
+        "conciseness": 1.0,
+        "helpfulness": 1.0,
+        "factuality": 0.5,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 1.0,
+        "trajectory_strict": 0.0
+      }
+    },
+    {
+      "query": "我的投资组合中科技股占比是多少？",
+      "node_trace": null,
+      "answer_chars": 86,
+      "scores": {
+        "relevance": 1.0,
+        "conciseness": 0.4,
+        "helpfulness": 0.7,
+        "factuality": 1.0,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 1.0,
+        "trajectory_strict": 0.0
+      }
+    },
+    {
+      "query": "请解释一下什么是ETF？",
+      "node_trace": null,
+      "answer_chars": 500,
+      "scores": {
+        "relevance": 1.0,
+        "conciseness": 0.4,
+        "helpfulness": 1.0,
+        "factuality": 1.0,
+        "toxicity": 1.0,
+        "processing_mode": 0.0,
+        "response_completeness": 1.0,
+        "trajectory_strict": 0.0
+      }
+    },
+    {
+      "query": "根据当前市场情况，我应该如何调整投资组合以应对可能的经济衰退？",
+      "node_trace": null,
+      "answer_chars": 2143,
+      "scores": {
+        "relevance": 1.0,
+        "conciseness": 0.2,
+        "helpfulness": 1.0,
+        "factuality": 0.9,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 0.5,
+        "trajectory_strict": 0.0
+      }
+    },
+    {
+      "query": "考虑到我的退休目标，请评估我当前的投资策略并提供优化建议。",
+      "node_trace": null,
+      "answer_chars": 3618,
+      "scores": {
+        "relevance": 1.0,
+        "conciseness": 0.1,
+        "helpfulness": 1.0,
+        "factuality": 0.7,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 0.75,
+        "trajectory_strict": 0.0
+      }
+    },
+    {
+      "query": "我想为子女准备教育金，请帮我设计一个10年期的投资计划。",
+      "node_trace": null,
+      "answer_chars": 2517,
+      "scores": {
+        "relevance": 1.0,
+        "conciseness": 0.2,
+        "helpfulness": 0.95,
+        "factuality": 0.8,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 1.0,
+        "trajectory_strict": 0.0
+      }
+    }
+  ]
+}

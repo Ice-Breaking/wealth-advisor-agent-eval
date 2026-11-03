@@ -63,8 +63,11 @@ from hybrid_advisor_langgraph import (  # noqa: E402
 )
 from dashscope_judge import get_judge  # noqa: E402
 
-# 结果落盘位置（相对本文件目录）
-RESULT_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "deepeval_results.json")
+# 结果落盘位置（相对本文件目录），可用 DEEPEVAL_RESULT_FILE 指定，
+# 便于同时保留"改前基线"与"改后复测"两份结果
+RESULT_FILE = os.getenv("DEEPEVAL_RESULT_FILE") or os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "deepeval_results.json"
+)
 
 # 工具名需与 hybrid_advisor_langgraph 中 tools_called 记录的名称一致
 TOOL_INDEX = "上证指数查询"
@@ -242,9 +245,12 @@ def to_case_dict(test_result: Any) -> Dict[str, Any]:
     case: Dict[str, Any] = {
         "input": test_result.input,
         # 保留判官实际看到的回答正文，便于复现与人工复核
-        "actual_output": (test_result.actual_output or "")[:MAX_OUTPUT_CHARS],
+        # 注意：deepeval 的 TestResult 没有 tools_called 属性（工具轨迹在 metrics_data 里体现），
+        # 这里全部用 getattr 兜底，避免不同版本字段缺失导致整条用例丢失
+        "actual_output": (getattr(test_result, "actual_output", "") or "")[:MAX_OUTPUT_CHARS],
         "tools_called": [
-            getattr(tool, "name", str(tool)) for tool in (test_result.tools_called or [])
+            getattr(tool, "name", str(tool))
+            for tool in (getattr(test_result, "tools_called", None) or [])
         ],
         "metrics": [],
     }
