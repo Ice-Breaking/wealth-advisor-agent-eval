@@ -11,6 +11,7 @@ import os
 # 导入评估模块：用 importlib 按文件名加载同目录模块
 import importlib.util
 import sys
+from datetime import datetime
 
 spec = importlib.util.spec_from_file_location(
     "langsmith_evaluation",
@@ -126,6 +127,5 @@ def main():
     print("  - 访问 LangSmith: https://smith.langchain.com")
 
 if __name__ == "__main__":
-    from datetime import datetime
     main()
 

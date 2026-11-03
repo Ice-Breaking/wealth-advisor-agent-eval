@@ -127,7 +127,6 @@ class WealthAdvisorState(TypedDict):
     final_response: Optional[str]  # 最终响应
     
     # 控制流
-    current_phase: Optional[str]
     error: Optional[str]  # 错误信息
 
 # 提示模板
@@ -376,13 +375,11 @@ def collect_data(state: WealthAdvisorState) -> WealthAdvisorState:
         return {
             **state,
             "market_data": result.get("collected_data", {}),
-            "current_phase": "analyze"
         }
     except Exception as e:
         return {
             **state,
             "error": f"数据收集阶段出错: {str(e)}",
-            "current_phase": "collect_data"  # 保持在当前阶段
         }
 
 # 深度分析 - 分析数据和客户情况
@@ -396,7 +393,6 @@ def analyze_data(state: WealthAdvisorState) -> WealthAdvisorState:
             return {
                 **state,
                 "error": "分析阶段缺少市场数据",
-                "current_phase": "collect_data"  # 回到数据收集阶段
             }
         
         # 准备提示
@@ -417,13 +413,11 @@ def analyze_data(state: WealthAdvisorState) -> WealthAdvisorState:
         return {
             **state,
             "analysis_results": result,
-            "current_phase": "recommend"
         }
     except Exception as e:
         return {
             **state,
             "error": f"分析阶段出错: {str(e)}",
-            "current_phase": "analyze"  # 保持在当前阶段
         }
 
 # 生成建议 - 根据分析结果提供投资建议
@@ -437,7 +431,6 @@ def generate_recommendations(state: WealthAdvisorState) -> WealthAdvisorState:
             return {
                 **state,
                 "error": "建议生成阶段缺少分析结果",
-                "current_phase": "analyze"  # 回到分析阶段
             }
         
         # 准备提示
@@ -458,13 +451,11 @@ def generate_recommendations(state: WealthAdvisorState) -> WealthAdvisorState:
         return {
             **state,
             "final_response": result,
-            "current_phase": "respond"
         }
     except Exception as e:
         return {
             **state,
             "error": f"建议生成阶段出错: {str(e)}",
-            "current_phase": "recommend"  # 保持在当前阶段
         }
 
 # 创建智能体工作流
@@ -498,20 +489,42 @@ def create_wealth_advisor_workflow() -> StateGraph:
     # 设置入口点
     workflow.set_entry_point("assess")
     
+    # 错误短路路由：任何阶段失败（error 非空）直接进入 respond 兜底，
+    # 避免上游失败后仍串行执行 2-3 次无意义的 LLM 调用
+    def route_after_assess(state: WealthAdvisorState) -> str:
+        if state.get("error"):
+            return "respond"
+        return "reactive" if state.get("processing_mode") == "reactive" else "collect_data"
+
+    def route_after_collect(state: WealthAdvisorState) -> str:
+        return "respond" if state.get("error") else "analyze"
+
+    def route_after_analyze(state: WealthAdvisorState) -> str:
+        return "respond" if state.get("error") else "recommend"
+
     # 添加分支路由
     workflow.add_conditional_edges(
         "assess",
-        lambda x: "reactive" if x.get("processing_mode") == "reactive" else "collect_data",
+        route_after_assess,
         {
             "reactive": "reactive",
-            "collect_data": "collect_data"
+            "collect_data": "collect_data",
+            "respond": "respond"
         }
+    )
+    workflow.add_conditional_edges(
+        "collect_data",
+        route_after_collect,
+        {"analyze": "analyze", "respond": "respond"}
+    )
+    workflow.add_conditional_edges(
+        "analyze",
+        route_after_analyze,
+        {"recommend": "recommend", "respond": "respond"}
     )
     
     # 添加固定路径边
     workflow.add_edge("reactive", "respond")
-    workflow.add_edge("collect_data", "analyze")
-    workflow.add_edge("analyze", "recommend")
     workflow.add_edge("recommend", "respond")
     workflow.add_edge("respond", END)
     
@@ -570,7 +583,6 @@ def run_wealth_advisor(user_query: str, customer_id: str = "customer1") -> Dict[
         "market_data": None,
         "analysis_results": None,
         "final_response": None,
-        "current_phase": "assess",
         "error": None
     }
     

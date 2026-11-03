@@ -397,10 +397,12 @@ class TracedAssistant(Assistant):
                 import traceback
                 traceback.print_exc()
                 print(f"  [警告] LangFuse 追踪失败: {e}，继续执行")
-                return super().run(messages, **kwargs)
+                # 本方法是生成器，必须用 yield from 转发父类产出；
+                # 若写 return，返回的生成器对象会被丢弃，表现为无响应
+                yield from super().run(messages, **kwargs)
         else:
             print("[DEBUG] LangFuse 未启用，使用原始 run 方法")
-            return super().run(messages, **kwargs)
+            yield from super().run(messages, **kwargs)
 
 # ====== 初始化智能体 ======
 

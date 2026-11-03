@@ -114,6 +114,7 @@ def create_test_case(
     return LLMTestCase(
         input=test_data["input"],
         actual_output=actual_output,
+        context=retrieval_context,  # HallucinationMetric 读取 context 字段
         retrieval_context=retrieval_context
     )
 
@@ -252,6 +253,7 @@ def test_reactive_query():
     test_case = LLMTestCase(
         input=test_data["input"],
         actual_output=result.get("final_response", ""),
+        context=test_data["context"],  # HallucinationMetric 读取 context 字段
         retrieval_context=test_data["context"]
     )
 
@@ -270,13 +272,15 @@ def test_deliberative_query():
     )
 
     customer_profile = SAMPLE_CUSTOMER_PROFILES.get(test_data["customer_id"], {})
+    context = test_data["context"] + [
+        f"客户风险等级: {customer_profile.get('risk_tolerance', '未知')}"
+    ]
 
     test_case = LLMTestCase(
         input=test_data["input"],
         actual_output=result.get("final_response", ""),
-        retrieval_context=test_data["context"] + [
-            f"客户风险等级: {customer_profile.get('risk_tolerance', '未知')}"
-        ]
+        context=context,  # HallucinationMetric 读取 context 字段
+        retrieval_context=context
     )
 
     metrics = [
