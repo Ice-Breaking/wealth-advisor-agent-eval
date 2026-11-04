@@ -39,10 +39,11 @@
 └── openevals-evaluators/            OpenEvals 判官
     ├── hybrid_advisor_langgraph.py        被测 Agent
     ├── langsmith_evaluation.py            LangSmith 数据集评估
-    ├── openevals_evaluators.py            7 个判官 × 6 条用例的完整套件
+    ├── openevals_evaluators.py            7 个判官 × 24 条标准 + 6 条对抗用例
     ├── json_text_judge.py                 纯文本 JSON 判官（绕开厂商结构化输出差异）
     ├── regrade_openevals.py / replay_agent.py   历史实验重打分 / 指定版本 agent 重放
     ├── judge_stability_openevals.py       判官稳定性量化（同一回答重复打 3 次）
+    ├── run_expanded_eval.py               P3 扩样本跑批（断点续跑 + --stats 汇总）
     ├── test_eval_gate.py                  CI 门控（pytest，阈值按实测噪声设定）
     ├── correctness.py / conciseness.py / answer_relevance.py
     ├── rag_helpfulness.py / rag_groundedness.py / rag_retrieval_relevance.py
@@ -77,6 +78,8 @@ push 到 main 时 GitHub Actions（`.github/workflows/eval-gate.yml`）自动运
 - **llm-gate**（需 secret）：真实跑 2 条标准用例 + 1 条对抗用例，指标阈值按判官稳定性实测噪声设定（详见 `docs/evaluation-report.md` 第十、十五章）
 
 首次使用需在仓库 Settings → Secrets and variables → Actions 配置 `DASHSCOPE_API_KEY`；判官/被测模型额度耗尽（403）时，改同名 Variables（`AGENT_MODEL` / `JUDGE_MODEL`）即可，无需改代码。
+
+**扩样本统计**：全量用例（24 标准 + 6 对抗）离线跑批用 `openevals-evaluators/run_expanded_eval.py`——中断后重跑同命令即自动续跑（已完成条目跳过），`--stats` 只汇总不调模型。CI 门控刻意保持 3 条小样本以控制每次推送成本。结果与结论见 `docs/evaluation-report.md` 第十六章。
 
 ## 环境变量
 
