@@ -10,8 +10,9 @@ DeepEval 评估脚本 - 投顾AI助手质量测试
 4. TaskCompletion   - 是否真正完成了用户任务（Agentic）
 5. ToolCorrectness  - 工具调用是否选对（Agentic，确定性比对）
 
-判官模型：DashScope 的 qwen3.8-max-0902（经 dashscope_judge.py 适配，
-不再依赖 OpenAI；实测只有该模型能稳定支撑结构化输出）
+判官模型：DashScope 兼容接口的 LLM（经 dashscope_judge.py 适配，不再依赖 OpenAI）。
+默认 deepseek-v4.1-flash-1017，可用 JUDGE_MODEL 环境变量切换；
+qwen3.8-max-0902 曾是最稳的结构化输出判官，但其免费额度已耗尽（403）。
 
 安装依赖：
     pip install deepeval        # 注意：不要整装 requirements.txt，会降级 langchain
@@ -72,7 +73,7 @@ RESULT_FILE = os.getenv("DEEPEVAL_RESULT_FILE") or os.path.join(
 # 工具名需与 hybrid_advisor_langgraph 中 tools_called 记录的名称一致
 TOOL_INDEX = "上证指数查询"
 
-# 判官输入截断：深思熟虑链路回答可达 4000+ 字，qwen3.8-max 在超长输入上偶发 180s 超时
+# 判官输入截断：深思熟虑链路回答可达 4000+ 字，判官（思考型模型）在超长输入上偶发超时
 # 结论性内容集中在开头，截断到 3000 字既稳定又不失真；ToolCorrectness 只比对工具名，不受影响
 MAX_OUTPUT_CHARS = 3000
 
@@ -181,7 +182,7 @@ def create_test_case(
 # ==================== 评估指标定义 ====================
 
 def get_metrics():
-    """获取评估指标列表（判官统一用 DashScope qwen3.8-max-0902）"""
+    """获取评估指标列表（判官由 dashscope_judge.DEFAULT_MODEL / JUDGE_MODEL 决定）"""
     judge = get_judge()
 
     # 1. 答案相关性：评估回答是否与问题相关

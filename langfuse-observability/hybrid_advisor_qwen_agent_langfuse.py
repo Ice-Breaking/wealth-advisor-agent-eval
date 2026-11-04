@@ -90,7 +90,8 @@ dashscope.api_key = DASHSCOPE_API_KEY
 dashscope.timeout = 30
 
 # 被测模型：可通过 AGENT_MODEL 环境变量切换
-AGENT_MODEL = os.getenv("AGENT_MODEL", "qwen3.8-2.4t-a95b")
+# 默认 deepseek-v4.1-flash-1017（qwen 系免费额度均已耗尽，会返回 403）
+AGENT_MODEL = os.getenv("AGENT_MODEL", "deepseek-v4.1-flash-1017")
 
 # 示例客户画像数据
 SAMPLE_CUSTOMER_PROFILES = {
