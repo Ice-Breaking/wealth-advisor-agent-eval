@@ -80,7 +80,9 @@ push 到 main 时 GitHub Actions（`.github/workflows/eval-gate.yml`）自动运
 
 首次使用需在仓库 Settings → Secrets and variables → Actions 配置 `DASHSCOPE_API_KEY`；判官/被测模型额度耗尽（403）时，改同名 Variables（`AGENT_MODEL` / `JUDGE_MODEL`）即可，无需改代码。
 
-**扩样本统计**：全量用例（24 标准 + 6 对抗）离线跑批用 `openevals-evaluators/run_expanded_eval.py`——中断后重跑同命令即自动续跑（已完成条目跳过），`--stats` 只汇总不调模型。CI 门控刻意保持 3 条小样本以控制每次推送成本。结果与结论见 `docs/evaluation-report.md` 第十六章。
+**扩样本统计**：全量用例（24 标准 + 6 对抗 + 6 多轮）离线跑批用 `openevals-evaluators/run_expanded_eval.py`——中断后重跑同命令即自动续跑（已完成条目跳过），`--stats` 只汇总不调模型。CI 门控刻意保持 3 条小样本以控制每次推送成本。结果与结论见 `docs/evaluation-report.md` 第十六、十八章。
+
+**多轮支持**：agent 的 `run_wealth_advisor` 接受可选 `chat_history`（`[{"role": "user"/"assistant", "content": ...}]`），单轮调用不传即行为不变；多轮用例见 `openevals_evaluators.py` 的 `MULTI_TURN_CASES`（含跨轮路由变化与多轮铺垫注入场景）。
 
 ## 环境变量
 

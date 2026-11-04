@@ -116,6 +116,10 @@ class WealthAdvisorState(TypedDict):
     # 输入
     user_query: str  # 用户查询
     customer_profile: Optional[Dict[str, Any]]  # 客户画像
+
+    # 对话历史（P4 多轮支持；单轮调用不传或传 None，行为与改造前完全一致）
+    # 结构：[{"role": "user"/"assistant", "content": "..."}, ...]，按时间升序
+    chat_history: Optional[List[Dict[str, str]]]
     
     # 处理状态
     query_type: Optional[Literal["emergency", "informational", "analytical"]]  # 查询类型
@@ -136,8 +140,31 @@ class WealthAdvisorState(TypedDict):
     # 控制流
     error: Optional[str]  # 错误信息
 
+# 对话历史拼接（P4 多轮支持）
+# 供各 prompt 模板的 {history_text} 占位符使用：
+# - 只保留最近 MAX_HISTORY_TURNS 轮（防超长截断影响路由质量）
+# - 每条内容截断到 200 字（回答很长时只保留开头，历史的作用是提供上下文而非全文）
+# - 空历史返回"（无）"，单轮调用 prompt 中不出现空洞
+MAX_HISTORY_TURNS = 6
+HISTORY_ITEM_MAX_CHARS = 200
+
+def format_history(chat_history: Optional[List[Dict[str, str]]]) -> str:
+    """把对话历史拼接成注入 prompt 的文本；空历史返回占位文本"""
+    if not chat_history:
+        return "（无）"
+    recent = chat_history[-MAX_HISTORY_TURNS:]
+    lines = []
+    for item in recent:
+        role = "用户" if item.get("role") == "user" else "助手"
+        content = str(item.get("content", ""))[:HISTORY_ITEM_MAX_CHARS]
+        lines.append(f"{role}: {content}")
+    return "\n".join(lines)
+
 # 提示模板
 ASSESSMENT_PROMPT = """你是一个财富管理投顾AI助手的协调层。请评估以下用户查询，确定其类型和应该采用的处理模式。
+
+对话历史（可能为空；若用户查询中有"刚才""上面""它"等指代，请结合历史理解其真实意图）:
+{history_text}
 
 用户查询: {user_query}
 
@@ -159,6 +186,9 @@ ASSESSMENT_PROMPT = """你是一个财富管理投顾AI助手的协调层。请�
 
 REACTIVE_PROMPT = """你是一个财富管理投顾AI助手，专注于提供快速准确的响应。请针对用户的查询提供直接的回答。
 
+对话历史:
+{history_text}
+
 用户查询: {user_query}
 
 客户信息:
@@ -177,6 +207,9 @@ REACTIVE_PROMPT = """你是一个财富管理投顾AI助手，专注于提供快
 """
 
 DATA_COLLECTION_PROMPT = """你是一个财富管理投顾AI助手的数据收集模块。基于以下用户查询，确定需要收集哪些市场和财务数据进行深入分析。
+
+对话历史:
+{history_text}
 
 用户查询: {user_query}
 
@@ -199,6 +232,9 @@ DATA_COLLECTION_PROMPT = """你是一个财富管理投顾AI助手的数据收�
 """
 
 ANALYSIS_PROMPT = """你是一个财富管理投顾AI助手的分析引擎。请根据收集的数据对用户的投资情况进行深入分析。
+
+对话历史:
+{history_text}
 
 用户查询: {user_query}
 
@@ -226,6 +262,9 @@ ANALYSIS_PROMPT = """你是一个财富管理投顾AI助手的分析引擎。请
 """
 
 RECOMMENDATION_PROMPT = """你是一个财富管理投顾AI助手。请根据深入分析结果，为客户准备最终的咨询建议。
+
+对话历史:
+{history_text}
 
 用户查询: {user_query}
 
@@ -284,8 +323,9 @@ def assess_query(state: WealthAdvisorState) -> WealthAdvisorState:
         # 构建输入
         input_data = {
             "user_query": state["user_query"],
+            "history_text": format_history(state.get("chat_history")),
         }
-        
+
         # 调用LLM
         chain = prompt | llm | JsonOutputParser()
         result = chain.invoke(input_data)
@@ -337,10 +377,13 @@ def reactive_processing(state: WealthAdvisorState) -> WealthAdvisorState:
 
 客户信息: {customer_profile}
 
+对话历史:
+{history_text}
+
 用户问题: {input}
 
 要求：
-1. 直接回答问题，不要复述问题
+1. 直接回答问题，不要复述问题；用户查询含指代时结合对话历史理解
 2. 涉及具体数据时说明数据来源性质
 3. 回答末尾用一句话说明该结论与客户风险等级、投资期限的适配关系
 4. 全文不超过 400 字
@@ -361,7 +404,11 @@ def reactive_processing(state: WealthAdvisorState) -> WealthAdvisorState:
         # 第一轮：让LLM决定是否需要工具
         prompt = ChatPromptTemplate.from_template(REACTIVE_AGENT_PROMPT)
         chain = prompt | llm | StrOutputParser()
-        first_response = chain.invoke({"input": user_query, "customer_profile": profile_text})
+        first_response = chain.invoke({
+            "input": user_query,
+            "customer_profile": profile_text,
+            "history_text": format_history(state.get("chat_history")),
+        })
 
         # 检查是否需要调用工具
         tools_called: List[Dict[str, Any]] = []
@@ -379,6 +426,8 @@ def reactive_processing(state: WealthAdvisorState) -> WealthAdvisorState:
             FINAL_PROMPT = """你是一个财富管理投顾AI助手。
 
 客户信息: {customer_profile}
+对话历史:
+{history_text}
 用户问题: {input}
 工具返回数据: {tool_result}
 
@@ -391,7 +440,12 @@ def reactive_processing(state: WealthAdvisorState) -> WealthAdvisorState:
             final_prompt = ChatPromptTemplate.from_template(FINAL_PROMPT)
             final_chain = final_prompt | llm | StrOutputParser()
             final_response = final_chain.invoke(
-                {"input": user_query, "tool_result": tool_result, "customer_profile": profile_text}
+                {
+                    "input": user_query,
+                    "tool_result": tool_result,
+                    "customer_profile": profile_text,
+                    "history_text": format_history(state.get("chat_history")),
+                }
             )
         else:
             final_response = first_response.replace("[CALL_TOOL:上证指数查询]", "").strip()
@@ -420,13 +474,14 @@ def collect_data(state: WealthAdvisorState) -> WealthAdvisorState:
         # 构建输入
         input_data = {
             "user_query": state["user_query"],
-            "customer_profile": json.dumps(state.get("customer_profile", {}), ensure_ascii=False, indent=2)
+            "customer_profile": json.dumps(state.get("customer_profile", {}), ensure_ascii=False, indent=2),
+            "history_text": format_history(state.get("chat_history")),
         }
-        
+
         # 调用LLM
         chain = prompt | llm | JsonOutputParser()
         result = chain.invoke(input_data)
-        
+
         # 更新状态
         return {
             **state,
@@ -459,7 +514,8 @@ def analyze_data(state: WealthAdvisorState) -> WealthAdvisorState:
         input_data = {
             "user_query": state["user_query"],
             "customer_profile": json.dumps(state.get("customer_profile", {}), ensure_ascii=False, indent=2),
-            "market_data": json.dumps(state.get("market_data", {}), ensure_ascii=False, indent=2)
+            "market_data": json.dumps(state.get("market_data", {}), ensure_ascii=False, indent=2),
+            "history_text": format_history(state.get("chat_history")),
         }
         
         # 调用LLM
@@ -499,7 +555,8 @@ def generate_recommendations(state: WealthAdvisorState) -> WealthAdvisorState:
         input_data = {
             "user_query": state["user_query"],
             "customer_profile": json.dumps(state.get("customer_profile", {}), ensure_ascii=False, indent=2),
-            "analysis_results": json.dumps(state.get("analysis_results", {}), ensure_ascii=False, indent=2)
+            "analysis_results": json.dumps(state.get("analysis_results", {}), ensure_ascii=False, indent=2),
+            "history_text": format_history(state.get("chat_history")),
         }
         
         # 调用LLM
@@ -641,19 +698,27 @@ SAMPLE_CUSTOMER_PROFILES = {
 }
 
 # 运行智能体
-def run_wealth_advisor(user_query: str, customer_id: str = "customer1") -> Dict[str, Any]:
-    """运行财富顾问智能体并返回结果"""
-    
+def run_wealth_advisor(
+    user_query: str,
+    customer_id: str = "customer1",
+    chat_history: Optional[List[Dict[str, str]]] = None,
+) -> Dict[str, Any]:
+    """运行财富顾问智能体并返回结果。
+
+    chat_history（P4 多轮支持）：[{"role": "user"/"assistant", "content": ...}, ...]，
+    单轮调用不传即可，行为与单轮版本完全一致。
+    """
     # 创建工作流
     agent = create_wealth_advisor_workflow()
-    
+
     # 获取客户画像
     customer_profile = SAMPLE_CUSTOMER_PROFILES.get(customer_id, SAMPLE_CUSTOMER_PROFILES["customer1"])
-    
+
     # 准备初始状态
     initial_state = {
         "user_query": user_query,
         "customer_profile": customer_profile,
+        "chat_history": chat_history,
         "query_type": None,
         "processing_mode": None,
         "emergency_response": None,
