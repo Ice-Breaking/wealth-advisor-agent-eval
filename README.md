@@ -42,7 +42,8 @@
     ├── openevals_evaluators.py            7 个判官 × 24 条标准 + 6 条对抗用例
     ├── json_text_judge.py                 纯文本 JSON 判官（绕开厂商结构化输出差异）
     ├── regrade_openevals.py / replay_agent.py   历史实验重打分 / 指定版本 agent 重放
-    ├── judge_stability_openevals.py       判官稳定性量化（同一回答重复打 3 次）
+    ├── judge_stability_openevals.py       判官稳定性量化（同一回答重复打 3 次；STABILITY_OUT 可指定输出文件保留多判官基线）
+    ├── kimi_regrade_quality.json / kimi_regrade_security.json   kimi-k3 跨判官重打分（判官可信度对照数据）
     ├── run_expanded_eval.py               P3 扩样本跑批（断点续跑 + --stats 汇总）
     ├── test_eval_gate.py                  CI 门控（pytest，阈值按实测噪声设定）
     ├── correctness.py / conciseness.py / answer_relevance.py

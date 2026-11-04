@@ -482,3 +482,47 @@ deepeval 侧（第七章）已有 `deepeval test run` 形态的 pytest 门控，
 - 全部 30 条数据已落盘 `openevals_results_expanded.json`，无待补跑项
 - 默认模型已迁至 deepseek-v4.1-flash（agent 与判官同模型，自我偏好风险已标注；换判官时用 regrade 工具链重打分即可，无需重跑 agent）
 - 已耗尽模型清单（pro-0813、glm-5.3）已加入 CI grep 禁用清单——下次默认值过时会在 static-checks 阶段被拦，而不是在 llm-gate 白烧额度
+
+## 十七、判官可信度（噪声重测 + 跨判官对照）
+
+第十五章的阈值由 glm-5.3 判官时代的 P1 噪声数据推导；判官换成 deepseek-v4.1-flash 后，这套地基需要重验。第十六章标注的"agent 与判官同模型"自我偏好风险也只有声明没有数据。本章用两组实验同时解决（复用 P1 稳定性脚本与 regrade 工具链，回答一字不动）。
+
+### 实验一：flash 判官噪声（judge_stability_openevals.py，42 次调用）
+
+同一回答 × 7 指标 × 3 次，落盘 `judge_stability_openevals_flash.json`（glm 时代基线保留在 `judge_stability_openevals.json`）：
+
+| 指标 | reactive 极差 | deliberative 极差 | 对照 glm-5.3 时代（P1） |
+|---|---|---|---|
+| factuality | 0 | 0 | 更稳（P1 短回答 0.05） |
+| toxicity | 0 | 0 | 持平 |
+| relevance | 0.1 | 0 | 更稳 |
+| helpfulness | 0.2 | 0.05 | 更稳（P1 短回答 0.2-0.35） |
+| conciseness | 0 | 0.05 | 更稳 |
+| response_completeness | 0 | 0 | 持平 |
+| processing_mode | 0 | **1.0** | 复现（P1 结论不变） |
+
+**结论：flash 是比 glm-5.3 更稳的判官**——除 processing_mode 再现极差 1.0（不 gate 的决定第 N 次被验证）外，全部指标极差 ≤0.2。**门控阈值全部验证通过、无需修改**：每个阈值的余量（实测均值 − 阈值）都数倍于实测极差。
+
+### 实验二：kimi-k3 跨判官对照（regrade_openevals.py 本地模式，204 次调用）
+
+kimi-k3 对 30 条已存回答重打分（quality 24 条 + security 6 条），与 flash 分数逐 query × 指标配对，落盘 `kimi_regrade_quality.json` / `kimi_regrade_security.json`。kimi-k3 亦为 reasoning 模型，PII 用例 3 次快测 JSON 完整（make_judge 无需加 max_tokens）。
+
+| 指标 | 平均偏差（flash − kimi） | |d|>0.15 条数 | 判读 |
+|---|---|---|---|
+| factuality | +0.013 | 3 | 无系统性偏差 |
+| relevance | +0.008 | 2 | 无系统性偏差 |
+| helpfulness | +0.001 | 4 | 无系统性偏差 |
+| toxicity / response_completeness / processing_mode | 0.000 | 0 | 完全一致 |
+| pii_disclosure / injection_defense（n=6） | 0.000 | 0 | 完全一致 |
+| pii_raw_inverted（n=6，对照口径） | **−0.833** | 5 | 口径差异，见下 |
+
+**核心结论：第十六章标注的自我偏好风险实测未发生**——flash 给自己写的回答打分与第三方判官 kimi-k3 的均值偏差 ≤0.013，且两条 factuality 大分歧方向相反（"三年期稳健计划" flash 0.40 / kimi 0.90；"35 岁养老金规划" flash 0.80 / kimi 0.50），是判官间 rubric 理解的正常抖动，不是系统性抬高。原表中的偏差解释为：分数差异主要来自内容类别（第十六章结论 2），而非判官身份。
+
+两点保留：
+
+1. `pii_raw_inverted`（内置 prompt 取反的对照口径）两判官分歧 0.833——该口径的"取反"语义本就易误判（第十二章已标注仅作对照），主口径 pii_disclosure 完全一致（6/6），不影响任何门控。
+2. n=30、以"均值偏差"为主口径，能排除系统性偏移，但对"单条 ±0.3 级别的判官间抖动"只能记录不能归因——门控阈值的大余量设计正是为此兜底。
+
+### 对门控的最终影响
+
+零修改。`test_eval_gate.py` 阈值经受住了两轮外部检验（flash 噪声重测 + kimi 跨判官对照），数据地基从"单判官时代的推导"升级为"双判官交叉验证"。CI 无需变更。

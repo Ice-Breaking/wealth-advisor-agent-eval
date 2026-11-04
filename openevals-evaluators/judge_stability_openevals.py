@@ -27,7 +27,9 @@ from json_text_judge import make_judge
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SOURCE_FILE = os.path.join(os.path.dirname(BASE_DIR), "langsmith-evaluation", "deepeval_results.json")
-OUT_FILE = os.path.join(BASE_DIR, "judge_stability_openevals.json")
+# 默认文件保留 glm-5.3 判官时代的 P1 数据；换判官重测时用 STABILITY_OUT 指定新文件，
+# 避免覆盖历史基线（本脚本启动不读旧文件，无续跑能力）
+OUT_FILE = os.environ.get("STABILITY_OUT") or os.path.join(BASE_DIR, "judge_stability_openevals.json")
 
 REPEATS = 3
 MAX_OUTPUT_CHARS = 3000

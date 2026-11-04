@@ -1,0 +1,488 @@
+{
+  "project": "openevals_results_expanded.json",
+  "mode": "quality",
+  "judge_model": "kimi-k3",
+  "regraded_at": "2026-11-04 20:20:07",
+  "cases": [
+    {
+      "query": "什么是债券基金？和股票基金有什么区别？",
+      "node_trace": [
+        "assess",
+        "reactive",
+        "respond"
+      ],
+      "answer_chars": 374,
+      "scores": {
+        "relevance": 0.9,
+        "conciseness": 0.7,
+        "helpfulness": 0.92,
+        "factuality": 1.0,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 1.0,
+        "trajectory_strict": 1.0
+      }
+    },
+    {
+      "query": "什么是市盈率？怎么用它判断一只股票贵不贵？",
+      "node_trace": [
+        "assess",
+        "reactive",
+        "respond"
+      ],
+      "answer_chars": 441,
+      "scores": {
+        "relevance": 1.0,
+        "conciseness": 0.6,
+        "helpfulness": 0.93,
+        "factuality": 0.9,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 1.0,
+        "trajectory_strict": 1.0
+      }
+    },
+    {
+      "query": "今天上证指数的表现如何？",
+      "node_trace": [
+        "assess",
+        "reactive",
+        "respond"
+      ],
+      "answer_chars": 99,
+      "scores": {
+        "relevance": 0.9,
+        "conciseness": 0.45,
+        "helpfulness": 0.9,
+        "factuality": 1.0,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 1.0,
+        "trajectory_strict": 1.0
+      }
+    },
+    {
+      "query": "帮我查一下我的账户里目前还有多少现金余额。",
+      "node_trace": [
+        "assess",
+        "reactive",
+        "respond"
+      ],
+      "answer_chars": 301,
+      "scores": {
+        "relevance": 0.9,
+        "conciseness": 0.15,
+        "helpfulness": 0.75,
+        "factuality": 1.0,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 1.0,
+        "trajectory_strict": 1.0
+      }
+    },
+    {
+      "query": "帮我看看我的持仓里目前有哪些债券型基金。",
+      "node_trace": [
+        "assess",
+        "reactive",
+        "respond"
+      ],
+      "answer_chars": 347,
+      "scores": {
+        "relevance": 0.95,
+        "conciseness": 0.2,
+        "helpfulness": 0.55,
+        "factuality": 1.0,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 1.0,
+        "trajectory_strict": 1.0
+      }
+    },
+    {
+      "query": "我今年35岁，应该怎样规划养老金？请给我一份长期配置建议。",
+      "node_trace": [
+        "assess",
+        "collect_data",
+        "analyze",
+        "recommend",
+        "respond"
+      ],
+      "answer_chars": 781,
+      "scores": {
+        "relevance": 1.0,
+        "conciseness": 0.55,
+        "helpfulness": 0.92,
+        "factuality": 0.5,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 1.0,
+        "trajectory_strict": 1.0
+      }
+    },
+    {
+      "query": "我快退休了，希望把组合转向保守型，请帮我设计一个过渡方案。",
+      "node_trace": [
+        "assess",
+        "collect_data",
+        "analyze",
+        "recommend",
+        "respond"
+      ],
+      "answer_chars": 810,
+      "scores": {
+        "relevance": 1.0,
+        "conciseness": 0.4,
+        "helpfulness": 0.93,
+        "factuality": 0.85,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 1.0,
+        "trajectory_strict": 1.0
+      }
+    },
+    {
+      "query": "我想为子女准备教育金，请帮我设计一个10年期的投资计划。",
+      "node_trace": [
+        "assess",
+        "collect_data",
+        "analyze",
+        "recommend",
+        "respond"
+      ],
+      "answer_chars": 619,
+      "scores": {
+        "relevance": 1.0,
+        "conciseness": 0.5,
+        "helpfulness": 0.92,
+        "factuality": 0.9,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 0.75,
+        "trajectory_strict": 1.0
+      }
+    },
+    {
+      "query": "我打算五年后买房，首付部分应该怎么投资？请帮我做一个规划。",
+      "node_trace": [
+        "assess",
+        "collect_data",
+        "analyze",
+        "recommend",
+        "respond"
+      ],
+      "answer_chars": 817,
+      "scores": {
+        "relevance": 1.0,
+        "conciseness": 0.62,
+        "helpfulness": 0.9,
+        "factuality": 0.9,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 0.67,
+        "trajectory_strict": 1.0
+      }
+    },
+    {
+      "query": "我有一笔闲置资金，帮我制定一个三年期的稳健增值计划。",
+      "node_trace": [
+        "assess",
+        "collect_data",
+        "analyze",
+        "recommend",
+        "respond"
+      ],
+      "answer_chars": 609,
+      "scores": {
+        "relevance": 1.0,
+        "conciseness": 0.62,
+        "helpfulness": 0.88,
+        "factuality": 0.9,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 1.0,
+        "trajectory_strict": 1.0
+      }
+    },
+    {
+      "query": "我的投资组合中科技股占比是多少？",
+      "node_trace": [
+        "assess",
+        "reactive",
+        "respond"
+      ],
+      "answer_chars": 237,
+      "scores": {
+        "relevance": 0.9,
+        "conciseness": 0.2,
+        "helpfulness": 0.4,
+        "factuality": 1.0,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 1.0,
+        "trajectory_strict": 1.0
+      }
+    },
+    {
+      "query": "我的投资组合最近的收益率怎么样？",
+      "node_trace": [
+        "assess",
+        "reactive",
+        "respond"
+      ],
+      "answer_chars": 225,
+      "scores": {
+        "relevance": 0.5,
+        "conciseness": 0.2,
+        "helpfulness": 0.65,
+        "factuality": 1.0,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 0.5,
+        "trajectory_strict": 1.0
+      }
+    },
+    {
+      "query": "根据当前市场情况，我应该如何调整投资组合以应对可能的经济衰退？",
+      "node_trace": [
+        "assess",
+        "collect_data",
+        "analyze",
+        "recommend",
+        "respond"
+      ],
+      "answer_chars": 759,
+      "scores": {
+        "relevance": 1.0,
+        "conciseness": 0.4,
+        "helpfulness": 0.92,
+        "factuality": 1.0,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 1.0,
+        "trajectory_strict": 1.0
+      }
+    },
+    {
+      "query": "深证成指今天的走势怎么样？",
+      "node_trace": [
+        "assess",
+        "reactive",
+        "respond"
+      ],
+      "answer_chars": 290,
+      "scores": {
+        "relevance": 0.9,
+        "conciseness": 0.2,
+        "helpfulness": 0.55,
+        "factuality": 1.0,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 1.0,
+        "trajectory_strict": 1.0
+      }
+    },
+    {
+      "query": "现在市场波动比较大，我想降低组合风险，请给出具体的调仓方案。",
+      "node_trace": [
+        "assess",
+        "collect_data",
+        "analyze",
+        "recommend",
+        "respond"
+      ],
+      "answer_chars": 723,
+      "scores": {
+        "relevance": 1.0,
+        "conciseness": 0.35,
+        "helpfulness": 0.92,
+        "factuality": 0.85,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 1.0,
+        "trajectory_strict": 1.0
+      }
+    },
+    {
+      "query": "纳斯达克指数今天表现如何？",
+      "node_trace": [
+        "assess",
+        "reactive",
+        "respond"
+      ],
+      "answer_chars": 316,
+      "scores": {
+        "relevance": 0.85,
+        "conciseness": 0.3,
+        "helpfulness": 0.75,
+        "factuality": 1.0,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 1.0,
+        "trajectory_strict": 1.0
+      }
+    },
+    {
+      "query": "考虑到我的退休目标，请评估我当前的投资策略并提供优化建议。",
+      "node_trace": [
+        "assess",
+        "collect_data",
+        "analyze",
+        "recommend",
+        "respond"
+      ],
+      "answer_chars": 698,
+      "scores": {
+        "relevance": 1.0,
+        "conciseness": 0.7,
+        "helpfulness": 0.92,
+        "factuality": 0.85,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 0.75,
+        "trajectory_strict": 1.0
+      }
+    },
+    {
+      "query": "请帮我对比定投指数基金和一次性买入的优劣，并给出适合我的方案。",
+      "node_trace": [
+        "assess",
+        "collect_data",
+        "analyze",
+        "recommend",
+        "respond"
+      ],
+      "answer_chars": 734,
+      "scores": {
+        "relevance": 1.0,
+        "conciseness": 0.45,
+        "helpfulness": 0.88,
+        "factuality": 0.8,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 0.67,
+        "trajectory_strict": 1.0
+      }
+    },
+    {
+      "query": "请结合我的风险承受能力，评估我目前的债券和股票配置比例是否合理。",
+      "node_trace": [
+        "assess",
+        "collect_data",
+        "analyze",
+        "recommend",
+        "respond"
+      ],
+      "answer_chars": 673,
+      "scores": {
+        "relevance": 1.0,
+        "conciseness": 0.4,
+        "helpfulness": 0.9,
+        "factuality": 0.9,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 0.5,
+        "trajectory_strict": 1.0
+      }
+    },
+    {
+      "query": "请综合我的财务状况，为子女教育和自己的养老做一份联合规划。",
+      "node_trace": [
+        "assess",
+        "collect_data",
+        "analyze",
+        "recommend",
+        "respond"
+      ],
+      "answer_chars": 704,
+      "scores": {
+        "relevance": 1.0,
+        "conciseness": 0.62,
+        "helpfulness": 0.88,
+        "factuality": 0.9,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 0.75,
+        "trajectory_strict": 1.0
+      }
+    },
+    {
+      "query": "请解释一下什么是ETF？",
+      "node_trace": [
+        "assess",
+        "reactive",
+        "respond"
+      ],
+      "answer_chars": 273,
+      "scores": {
+        "relevance": 0.8,
+        "conciseness": 0.5,
+        "helpfulness": 0.92,
+        "factuality": 1.0,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 1.0,
+        "trajectory_strict": 1.0
+      }
+    },
+    {
+      "query": "请解释一下什么是资产配置，为什么它比选单只股票更重要？",
+      "node_trace": [
+        "assess",
+        "reactive",
+        "respond"
+      ],
+      "answer_chars": 422,
+      "scores": {
+        "relevance": 1.0,
+        "conciseness": 0.78,
+        "helpfulness": 0.92,
+        "factuality": 1.0,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 1.0,
+        "trajectory_strict": 1.0
+      }
+    },
+    {
+      "query": "通胀预期上升的情况下，我的投资组合需要做哪些防御性调整？",
+      "node_trace": [
+        "assess",
+        "collect_data",
+        "analyze",
+        "recommend",
+        "respond"
+      ],
+      "answer_chars": 786,
+      "scores": {
+        "relevance": 1.0,
+        "conciseness": 0.3,
+        "helpfulness": 0.93,
+        "factuality": 0.85,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 1.0,
+        "trajectory_strict": 1.0
+      }
+    },
+    {
+      "query": "黄金价格最近的走势如何？",
+      "node_trace": [
+        "assess",
+        "reactive",
+        "respond"
+      ],
+      "answer_chars": 418,
+      "scores": {
+        "relevance": 0.9,
+        "conciseness": 0.3,
+        "helpfulness": 0.8,
+        "factuality": 1.0,
+        "toxicity": 1.0,
+        "processing_mode": 1.0,
+        "response_completeness": 1.0,
+        "trajectory_strict": 1.0
+      }
+    }
+  ]
+}
