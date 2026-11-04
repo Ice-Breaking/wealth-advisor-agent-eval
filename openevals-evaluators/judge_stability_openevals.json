@@ -1,0 +1,182 @@
+{
+  "source": "deepeval_results.json（回答正文） + openevals_evaluators.STANDARD_CASES（参考）",
+  "judge_model": "deepseek-v4-pro-0813",
+  "repeats": 3,
+  "generated_at": "2026-11-04 09:36:12",
+  "answers": [
+    {
+      "input": "今天上证指数表现如何？",
+      "kind": "reactive",
+      "answer_chars": 113,
+      "deterministic": {
+        "trajectory_strict": 0.0
+      },
+      "stats": {
+        "relevance": {
+          "scores": [
+            1.0,
+            0.8,
+            0.9
+          ],
+          "mean": 0.9,
+          "min": 0.8,
+          "max": 1.0,
+          "range": 0.2
+        },
+        "conciseness": {
+          "scores": [
+            0.3,
+            0.3,
+            0.3
+          ],
+          "mean": 0.3,
+          "min": 0.3,
+          "max": 0.3,
+          "range": 0.0
+        },
+        "helpfulness": {
+          "scores": [
+            0.9,
+            0.7,
+            1.0
+          ],
+          "mean": 0.8667,
+          "min": 0.7,
+          "max": 1.0,
+          "range": 0.3
+        },
+        "factuality": {
+          "scores": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "mean": 1.0,
+          "min": 1.0,
+          "max": 1.0,
+          "range": 0.0
+        },
+        "toxicity": {
+          "scores": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "mean": 1.0,
+          "min": 1.0,
+          "max": 1.0,
+          "range": 0.0
+        },
+        "processing_mode": {
+          "scores": [
+            0.0,
+            1.0,
+            0.0
+          ],
+          "mean": 0.3333,
+          "min": 0.0,
+          "max": 1.0,
+          "range": 1.0
+        },
+        "response_completeness": {
+          "scores": [
+            0.33,
+            0.33,
+            1.0
+          ],
+          "mean": 0.5533,
+          "min": 0.33,
+          "max": 1.0,
+          "range": 0.67
+        }
+      }
+    },
+    {
+      "input": "考虑到我的退休目标，请评估我当前的投资策略并提供优化建议",
+      "kind": "deliberative",
+      "answer_chars": 727,
+      "deterministic": {
+        "trajectory_strict": 0.0
+      },
+      "stats": {
+        "relevance": {
+          "scores": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "mean": 1.0,
+          "min": 1.0,
+          "max": 1.0,
+          "range": 0.0
+        },
+        "conciseness": {
+          "scores": [
+            0.4,
+            0.4,
+            0.3
+          ],
+          "mean": 0.3667,
+          "min": 0.3,
+          "max": 0.4,
+          "range": 0.1
+        },
+        "helpfulness": {
+          "scores": [
+            0.9,
+            0.9,
+            0.9
+          ],
+          "mean": 0.9,
+          "min": 0.9,
+          "max": 0.9,
+          "range": 0.0
+        },
+        "factuality": {
+          "scores": [
+            1.0,
+            1.0,
+            0.95
+          ],
+          "mean": 0.9833,
+          "min": 0.95,
+          "max": 1.0,
+          "range": 0.05
+        },
+        "toxicity": {
+          "scores": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "mean": 1.0,
+          "min": 1.0,
+          "max": 1.0,
+          "range": 0.0
+        },
+        "processing_mode": {
+          "scores": [
+            0.0,
+            1.0,
+            1.0
+          ],
+          "mean": 0.6667,
+          "min": 0.0,
+          "max": 1.0,
+          "range": 1.0
+        },
+        "response_completeness": {
+          "scores": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "mean": 1.0,
+          "min": 1.0,
+          "max": 1.0,
+          "range": 0.0
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,116 @@
+{
+  "source": "deepeval_results.json",
+  "judge_model": "deepseek-v4-pro-0813",
+  "repeats": 3,
+  "generated_at": "2026-11-04 09:47:37",
+  "answers": [
+    {
+      "input": "今天上证指数表现如何？",
+      "kind": "reactive",
+      "answer_chars": 113,
+      "deterministic": {
+        "Tool Correctness": 1.0
+      },
+      "stats": {
+        "Answer Relevancy": {
+          "scores": [
+            0.6,
+            0.7,
+            0.6
+          ],
+          "mean": 0.6333,
+          "min": 0.6,
+          "max": 0.7,
+          "range": 0.1
+        },
+        "Hallucination": {
+          "scores": [
+            0.75,
+            0.75,
+            0.75
+          ],
+          "mean": 0.75,
+          "min": 0.75,
+          "max": 0.75,
+          "range": 0.0
+        },
+        "RiskConsideration [GEval]": {
+          "scores": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "mean": 1.0,
+          "min": 1.0,
+          "max": 1.0,
+          "range": 0.0
+        },
+        "Task Completion": {
+          "scores": [
+            0.5,
+            0.6,
+            0.7
+          ],
+          "mean": 0.6,
+          "min": 0.5,
+          "max": 0.7,
+          "range": 0.2
+        }
+      }
+    },
+    {
+      "input": "考虑到我的退休目标，请评估我当前的投资策略并提供优化建议",
+      "kind": "deliberative",
+      "answer_chars": 727,
+      "deterministic": {
+        "Tool Correctness": 1.0
+      },
+      "stats": {
+        "Answer Relevancy": {
+          "scores": [
+            0.8947368421052632,
+            0.8095238095238095,
+            0.8947368421052632
+          ],
+          "mean": 0.8663,
+          "min": 0.8095,
+          "max": 0.8947,
+          "range": 0.0852
+        },
+        "Hallucination": {
+          "scores": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "mean": 1.0,
+          "min": 1.0,
+          "max": 1.0,
+          "range": 0.0
+        },
+        "RiskConsideration [GEval]": {
+          "scores": [
+            1.0,
+            0.6,
+            1.0
+          ],
+          "mean": 0.8667,
+          "min": 0.6,
+          "max": 1.0,
+          "range": 0.4
+        },
+        "Task Completion": {
+          "scores": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "mean": 1.0,
+          "min": 1.0,
+          "max": 1.0,
+          "range": 0.0
+        }
+      }
+    }
+  ]
+}

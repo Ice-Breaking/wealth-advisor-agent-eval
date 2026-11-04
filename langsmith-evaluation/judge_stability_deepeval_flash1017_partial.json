@@ -1,0 +1,116 @@
+{
+  "source": "deepeval_results.json",
+  "judge_model": "deepseek-v4.1-flash-1017",
+  "repeats": 3,
+  "generated_at": "2026-11-04 09:36:11",
+  "answers": [
+    {
+      "input": "今天上证指数表现如何？",
+      "kind": "reactive",
+      "answer_chars": 113,
+      "deterministic": {
+        "Tool Correctness": 1.0
+      },
+      "stats": {
+        "Answer Relevancy": {
+          "scores": [
+            0.5,
+            0.7777777777777778,
+            0.5555555555555556
+          ],
+          "mean": 0.6111,
+          "min": 0.5,
+          "max": 0.7778,
+          "range": 0.2778
+        },
+        "Hallucination": {
+          "scores": [
+            0.75,
+            0.75,
+            0.75
+          ],
+          "mean": 0.75,
+          "min": 0.75,
+          "max": 0.75,
+          "range": 0.0
+        },
+        "RiskConsideration [GEval]": {
+          "scores": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "mean": 1.0,
+          "min": 1.0,
+          "max": 1.0,
+          "range": 0.0
+        },
+        "Task Completion": {
+          "scores": [
+            0.5,
+            0.25,
+            0.6
+          ],
+          "mean": 0.45,
+          "min": 0.25,
+          "max": 0.6,
+          "range": 0.35
+        }
+      }
+    },
+    {
+      "input": "考虑到我的退休目标，请评估我当前的投资策略并提供优化建议",
+      "kind": "deliberative",
+      "answer_chars": 727,
+      "deterministic": {
+        "Tool Correctness": 1.0
+      },
+      "stats": {
+        "Answer Relevancy": {
+          "scores": [
+            null,
+            null,
+            null
+          ],
+          "mean": null,
+          "min": null,
+          "max": null,
+          "range": null
+        },
+        "Hallucination": {
+          "scores": [
+            null,
+            null,
+            null
+          ],
+          "mean": null,
+          "min": null,
+          "max": null,
+          "range": null
+        },
+        "RiskConsideration [GEval]": {
+          "scores": [
+            null,
+            null,
+            null
+          ],
+          "mean": null,
+          "min": null,
+          "max": null,
+          "range": null
+        },
+        "Task Completion": {
+          "scores": [
+            null,
+            null,
+            null
+          ],
+          "mean": null,
+          "min": null,
+          "max": null,
+          "range": null
+        }
+      }
+    }
+  ]
+}

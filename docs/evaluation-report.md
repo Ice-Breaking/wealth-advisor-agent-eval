@@ -98,6 +98,10 @@ python3.11 regrade_openevals.py <langsmith_project> quality openevals_results_af
 git show d2db582:langsmith-evaluation/hybrid_advisor_langgraph.py > /tmp/old_agent/hybrid_advisor_langgraph.py
 AGENT_MODEL=deepseek-v4.1-flash-1017 python3.11 replay_agent.py /tmp/old_agent/hybrid_advisor_langgraph.py openevals_baseline_outputs.json
 
+# 判官稳定性量化（同一回答重复打 3 次，产出极差表）
+cd ../langsmith-evaluation && python3.11 judge_stability_deepeval.py          # JUDGE_MODEL 可换判官
+cd ../openevals-evaluators && python3.11 judge_stability_openevals.py
+
 # LangFuse：token 用量与 trace_id
 cd ../langfuse-observability
 AGENT_MODEL=deepseek-v4.1-flash-1017 python3.11 langgraph_langfuse_runner.py
@@ -259,10 +263,48 @@ deepeval test run deepeval_wealth_advisor.py   # 通过则退出码 0
 **付出的代价**
 
 1. **信息完整度下降**：openevals 语义完整度 0.88→0.74（科技股 1.00→0.67、经济衰退 0.50→0.25、教育金 1.00→0.75）——压缩篇幅确实丢掉了关键词覆盖。
-2. **判官眼中的"直接性"下降**：deepeval 任务完成 0.95→0.79、相关性 1.00→0.81。上证用例最典型：回答加了"该数据为模拟数据"后，判官判定"明确说明是模拟数据，因此没有可靠回答今天的实际表现"，任务完成从 1.00 掉到 0.25。
+2. **判官眼中的"直接性"下降**：deepeval 任务完成 0.95→0.79、相关性 1.00→0.81。上证用例最典型：回答加了"该数据为模拟数据"后，判官判定"明确说明是模拟数据，因此没有可靠回答今天的实际表现"，任务完成从 1.00 掉到 0.25。（注意：TaskCompletion 单次极差实测 0.2~0.35，该结论在判官噪声内，见下文稳定性量化。）
 3. **简洁性指标几乎没动**（0.38→0.40），尽管字数砍掉了 3/4——说明 `CONCISENESS_PROMPT` 对"结论先行 + 分点"这种结构化表达不敏感，它更多在看有没有冗余铺陈。**这是指标本身的局限，不能因为分数没涨就认为压缩无效**，应结合字数一起看。
 
 **取舍建议**：面向投顾场景，"数据性质声明"应保留（合规价值高于 0.25 的任务完成分），但可以把声明缩短为一句、并放在结论之后而非之前，以缓解判官对"削弱直接性"的反应；篇幅压缩可以适度回调到 1200-1500 字，用回一部分语义完整度。
+
+### 判官稳定性量化：上面哪些结论站得住？（实测）
+
+以上对比全部建立在**单次打分**上，而 LLM 判官不是确定性函数。为划定可信边界，取改后 2 条固定回答（上证=reactive 短回答、退休=deliberative 长回答，正文取自 `deepeval_results.json`，不重跑 Agent），让同一判官各重复打 3 次，统计极差（max−min）。
+
+**openevals 判官（deepseek-v4-pro-0813，7 指标 × 2 回答 × 3 次 = 42 次调用）**
+
+| 指标 | 上证（reactive） | 退休（deliberative） |
+|---|---|---|
+| relevance | 0.9 ±0.2 | 1.0 ±0 |
+| conciseness | 0.3 ±0 | 0.37 ±0.1 |
+| helpfulness | 0.87 ±**0.3** | 0.9 ±0 |
+| factuality | 1.0 ±0 | 0.98 ±0.05 |
+| toxicity | 1.0 ±0 | 1.0 ±0 |
+| processing_mode | 0.33 ±**1.0** | 0.67 ±**1.0** |
+| response_completeness | 0.55 ±**0.67** | 1.0 ±0 |
+
+**deepeval 判官（deepseek-v4-pro-0813，4 指标 × 2 回答 × 3 次 = 24 次调用）**
+
+| 指标 | 上证（reactive） | 退休（deliberative） |
+|---|---|---|
+| Answer Relevancy | 0.63 ±0.1 | 0.87 ±0.09 |
+| Hallucination | 0.75 ±0 | 1.0 ±0 |
+| RiskConsideration [GEval] | 1.0 ±0 | 0.87 ±**0.4** |
+| Task Completion | 0.6 ±**0.2** | 1.0 ±0 |
+
+（flash-1017 在 reactive 部分另测得 3 次：Answer Relevancy 极差 0.28、Task Completion 极差 0.35，比 pro-0813 更不稳；随后额度耗尽，正式数据以 pro-0813 为准，存档见 `judge_stability_deepeval_flash1017_partial.json`。）
+
+**三个规律**
+
+1. **长回答稳定、短回答波动大**：deliberative 回答除 GEval 外极差全部 ≤0.1，reactive 回答的高波动集中在 TaskCompletion（0.2-0.35）、response_completeness（0.67）、helpfulness（0.3）。短回答信息少，判官在不同解读间摇摆。
+2. **processing_mode 极差 1.0，一半是噪声一半是真实边界模糊**：同一份上证回答 3 次打分在 0/1 之间跳。改后回答在数据陈述之外追加了配置建议（"更宜关注中期基本面"），使路由判定游移在 reactive/analytical 之间——**第十章"处理模式 0.83→1.00"不能作为改进证据**。
+3. **核心结论要重新分级**（判读规则：极差 ≤0.05 稳定；0.05-0.2 结论成立但属单次抽样；>0.2 降级为方向性结论）：
+   - **成立**：事实自洽 0.82→0.97（factuality 极差 0~0.05）、篇幅压缩（字数是确定性度量）、deliberative 的语义完整度下降（该链路极差 0）
+   - **在噪声内、必须降级**：风险考虑 0.70→0.85（差距 0.15 < GEval 极差 0.4）、任务完成 0.95→0.79（差距 0.16 < 极差 0.2~0.35）
+   - **不可作证据**：处理模式 0.83→1.00（极差 1.0）
+
+**方法论教训**：单次判官分数只能当方向参考；涉及改进对比的指标，至少跑 3 次取均值再下结论。本轮受额度限制只覆盖 2 条回答 × 2 判官，样本小，结论按"方向性"对待。
 
 ### 可复现性说明（必读）
 
