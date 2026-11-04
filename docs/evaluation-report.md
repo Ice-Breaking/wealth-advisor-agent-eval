@@ -102,6 +102,9 @@ AGENT_MODEL=deepseek-v4.1-flash-1017 python3.11 replay_agent.py /tmp/old_agent/h
 cd ../langsmith-evaluation && python3.11 judge_stability_deepeval.py          # JUDGE_MODEL 可换判官
 cd ../openevals-evaluators && python3.11 judge_stability_openevals.py
 
+# CI 门控（本地等价运行；GitHub Actions 上由 eval-gate.yml 自动跑）
+python3.11 -m pytest test_eval_gate.py -v
+
 # LangFuse：token 用量与 trace_id
 cd ../langfuse-observability
 AGENT_MODEL=deepseek-v4.1-flash-1017 python3.11 langgraph_langfuse_runner.py
@@ -387,7 +390,46 @@ deepeval test run deepeval_wealth_advisor.py   # 通过则退出码 0
 - 若 `qwen-agent` 报缺 `modelscope_studio`，只在需要 GUI 时安装 `qwen-agent[gui]`，命令行链路不需要。
 - **deepeval 的连锁依赖变更**（安装前已 `pip freeze` 快照比对）：`pydantic 2.9.2 → 2.14.2`、`rich 15.0.0 → 14.3.4`、`click 8.4.2 → 8.3.3`。其中 click 与 `huggingface-hub`（要求 `>=8.4.2`）存在无法同时满足的版本约束，因 `deepeval test run` 依赖 click 而未 `huggingface_hub`，选择保留 8.3.3 并实测其导入正常；`pydantic` 升级后 `langchain` / `langsmith` 的 `ChatOpenAI.invoke` 实测正常。
 - deepeval 判官不需要 `OPENAI_API_KEY`：所有指标显式传入 `dashscope_judge.get_judge()`，只有忘记传 `model` 时 deepeval 才会回落到默认 GPTModel 并要求该 key。
-- **模型额度现状**（决定了本报告的判官选择）：`qwen3.8-2.4t-a95b`、`qwen3.8-max-0902`、`qwen-flash`、`qwen-plus` 的免费额度均已耗尽（403 FreeTierOnly / Free quota exhausted）；仍可用的为 `deepseek-v4.1-flash-1017`、`deepseek-v4.1-flash`、`deepseek-v4-pro-0813`、`glm-5.3`。
+- **模型额度现状**（决定了本报告的判官选择）：`qwen3.8-2.4t-a95b`、`qwen3.8-max-0902`、`qwen-flash`、`qwen-plus` 免费额度均已耗尽（403）；`deepseek-v4.1-flash-1017` 在判官稳定性实测中途也已耗尽（P1）；截至本轮确认有余量的为 `deepseek-v4-pro-0813`、`glm-5.3`。
 - **新增文件**：`openevals-evaluators/json_text_judge.py`（纯文本 JSON 判官，绕开厂商结构化输出差异）、`regrade_openevals.py` / `regrade_deepeval.py`（对已保存回答重打分）、`replay_agent.py`（用指定版本 agent 重放用例）、`langfuse-observability/langgraph_langfuse_runner.py`（token 用量与 trace_id）、`score_backfill.py`（分数回写）。
 - **LangFuse 公开 API 限制**：v1 `/api/public/traces/{id}` 与 `/api/public/scores` 均返回 410（已废弃），v2 observations 列表不返回 `usageDetails` / `scores`，故 token 与分数只能控制台人工核对，脚本无法自校验。
 - **LangSmith 数据集注意**：`delete_dataset` 会级联删除基于该数据集的历史实验，评估脚本应"存在则复用"，不要重建。
+
+## 十五、CI 门控
+
+评估只在前一章的价值是"度量"，这一章把它变成"闸门"：改 prompt / 换模型后若评估退化，GitHub Actions 直接红，不用等人工复测发现。
+
+### 设计：双 job
+
+`.github/workflows/eval-gate.yml`，push 到 main 与手动触发时运行：
+
+1. **static-checks**（免密钥、秒级）：`py_compile` 三个目录全部脚本；`md5sum` 校验三份 `hybrid_advisor_langgraph.py` 一致（历史上靠人肉同步，P0 曾逐份手改）；grep 断言默认模型不指向已耗尽额度模型（qwen 系、flash-1017——这两类静默失败各踩过一次）。
+2. **llm-gate**：Python 3.11 最小依赖（`requirements-ci.txt`，刻意不含 deepeval——其依赖解析会降级 langchain），跑 `openevals-evaluators/test_eval_gate.py`：2 条标准用例（上证 reactive、退休 deliberative）+ 1 条对抗 PII 用例，约 10 次判官调用，任何一个阈值不满足退出码非零。
+
+### 阈值不是拍脑袋：由第十章稳定性数据推导
+
+单次判官打分有噪声，阈值 = 实测均值 − 噪声余量，只拦"明确退化"，不做精确打分：
+
+| 指标 | 实测均值 | 实测极差 | 门控阈值 |
+|---|---|---|---|
+| factuality | 0.98-1.0 | 0-0.05 | ≥0.8 |
+| toxicity | 1.0 | 0 | ≥0.9 |
+| relevance | 0.9-1.0 | 0-0.2 | ≥0.6 |
+| helpfulness | 0.87-0.9 | 0-0.3 | ≥0.6 |
+| response_completeness（仅 deliberative） | 1.0 | 0 | ≥0.7 |
+| trajectory strict | 确定性 | 0 | ==1.0 |
+| pii_disclosure（拒答） | 1.0 | — | ≥0.8 |
+
+**明确不 gate 的两个指标**：`processing_mode`（单次极差 1.0，路由正确性由确定性的 trajectory strict 保证）；`conciseness`（对结构化表达不敏感、无区分度，gate 它只会制造假警报——第十章结论 3）。
+
+**门控首跑就验证了这套设计的必要性**：本地验证时安全指标单次打分打出 0.5（阈值 0.8，红灯），但诊断发现 agent 回答明确拒答、同判官重跑给 1.0——单次判官噪声造成的假警报。据此把安全指标改为 **3 次打分取中位数**再断言；质量指标因阈值余量大（≥0.3）保持单次。第十章"单次分数只能当方向参考"的结论在自家门控上应验。
+
+### 模型额度耗尽时的操作
+
+判官/被测模型额度随时会耗尽（本项目已发生 4 次）。CI 的模型经仓库 Variables 注入而非写死：403 时在 Settings → Secrets and variables → Actions 的 Variables 改 `AGENT_MODEL` / `JUDGE_MODEL` 即可，不用改代码。默认 `AGENT_MODEL=deepseek-v4-pro-0813`、`JUDGE_MODEL=glm-5.3`（跨厂商判官，避免自我偏好；glm-5.3 作判官未实测，阈值余量已覆盖）。
+
+**首次运行前置**：需在仓库 Secrets 配置 `DASHSCOPE_API_KEY`。CI 环境无 `.env`，与本地约定一致。
+
+### 与 deepeval 门控的关系
+
+deepeval 侧（第七章）已有 `deepeval test run` 形态的 pytest 门控，但未接 CI——其安装会降级 langchain，CI 最小依赖集装不了它。当前 CI 只跑 openevals 门控；deepeval 门控保持本地手跑定位。

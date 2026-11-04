@@ -1,0 +1,8 @@
+# CI 门控最小依赖（python3.11）
+# 刻意不装 deepeval：其依赖解析会把 langchain 降级到不兼容版本（见 deepeval_wealth_advisor.py 头注释）
+langgraph>=0.2
+langchain>=0.3
+langchain-core>=0.3
+langchain-openai>=0.2
+openevals>=0.4
+pytest>=8.0

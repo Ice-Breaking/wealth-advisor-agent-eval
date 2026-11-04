@@ -28,6 +28,8 @@
 │   ├── agent_automation_testing.py      完整自动化测试（支持 --summary 只读查看）
 │   ├── hybrid_advisor_qwen_agent.py     同一 Agent 的 qwen-agent 声明式实现
 │   ├── deepeval_wealth_advisor.py       DeepEval 指标（相关性 / 幻觉 / 自定义 GEval）
+│   ├── regrade_deepeval.py              对已保存回答重打分（换判官保证可比）
+│   ├── judge_stability_deepeval.py      判官稳定性量化（同一回答重复打 3 次）
 │   └── assistant_ticket_bot.py          客服工单助手（另一个被测样例）
 ├── langfuse-observability/          LangFuse 观测
 │   ├── hybrid_advisor_langgraph.py             同一 Agent + LangFuse 上报
@@ -38,6 +40,10 @@
     ├── hybrid_advisor_langgraph.py        被测 Agent
     ├── langsmith_evaluation.py            LangSmith 数据集评估
     ├── openevals_evaluators.py            7 个判官 × 6 条用例的完整套件
+    ├── json_text_judge.py                 纯文本 JSON 判官（绕开厂商结构化输出差异）
+    ├── regrade_openevals.py / replay_agent.py   历史实验重打分 / 指定版本 agent 重放
+    ├── judge_stability_openevals.py       判官稳定性量化（同一回答重复打 3 次）
+    ├── test_eval_gate.py                  CI 门控（pytest，阈值按实测噪声设定）
     ├── correctness.py / conciseness.py / answer_relevance.py
     ├── rag_helpfulness.py / rag_groundedness.py / rag_retrieval_relevance.py
     ├── toxicity.py / hallucination.py
@@ -60,7 +66,17 @@ python3.11 -m venv .venv && source .venv/bin/activate   # 可选
 pip install -r langsmith-evaluation/requirements.txt
 pip install -r langfuse-observability/requirements.txt   # 需要 LangFuse 时
 pip install -r openevals-evaluators/requirements.txt     # 需要 OpenEvals 时
+pip install -r requirements-ci.txt                       # 只跑 CI 门控时的最小依赖
 ```
+
+## 自动化门控（CI）
+
+push 到 main 时 GitHub Actions（`.github/workflows/eval-gate.yml`）自动运行两道检查：
+
+- **static-checks**（免密钥、秒级）：脚本编译、三份 agent 副本 md5 一致、默认模型不指向已耗尽额度模型
+- **llm-gate**（需 secret）：真实跑 2 条标准用例 + 1 条对抗用例，指标阈值按判官稳定性实测噪声设定（详见 `docs/evaluation-report.md` 第十、十五章）
+
+首次使用需在仓库 Settings → Secrets and variables → Actions 配置 `DASHSCOPE_API_KEY`；判官/被测模型额度耗尽（403）时，改同名 Variables（`AGENT_MODEL` / `JUDGE_MODEL`）即可，无需改代码。
 
 ## 环境变量
 
@@ -72,7 +88,7 @@ pip install -r openevals-evaluators/requirements.txt     # 需要 OpenEvals 时
 | `LANGSMITH_API_KEY` | 是 | LangSmith API Key |
 | `LANGCHAIN_TRACING_V2` | 是 | 设为 `true` 才会上报 trace |
 | `LANGCHAIN_PROJECT` | 否 | 项目名，默认 `wealth-advisor-hybrid-agent` |
-| `AGENT_MODEL` | 否 | 切换被测模型，默认 `qwen3.8-2.4t-a95b` |
+| `AGENT_MODEL` | 否 | 切换被测模型；默认值以 `.env.example` 为准（免费额度会耗尽，403 时换模型即可） |
 
 ```bash
 export DASHSCOPE_API_KEY="sk-..."
