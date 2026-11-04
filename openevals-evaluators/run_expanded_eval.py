@@ -13,7 +13,7 @@ P3 扩样本评估：24 条标准 + 6 条对抗，全量跑 openevals 指标
     python run_expanded_eval.py            # 全量跑（自动跳过已完成条目）
     python run_expanded_eval.py --stats    # 只汇总已有结果的分维度统计，不调模型
 
-环境变量：AGENT_MODEL（默认 deepseek-v4-pro-0813）、JUDGE_MODEL（默认 glm-5.3）、
+环境变量：AGENT_MODEL（默认 deepseek-v4.1-flash）、JUDGE_MODEL（默认 glm-5.3）、
          DASHSCOPE_API_KEY 必需、EXPANDED_OUT 可改输出文件名
 """
 
@@ -23,10 +23,10 @@ import sys
 import time
 from datetime import datetime
 
-AGENT_MODEL = os.getenv("AGENT_MODEL", "deepseek-v4-pro-0813")
+AGENT_MODEL = os.getenv("AGENT_MODEL", "deepseek-v4.1-flash")
 # agent 模块在 import 时读取 AGENT_MODEL，必须在导入前注入
 os.environ.setdefault("AGENT_MODEL", AGENT_MODEL)
-JUDGE_MODEL = os.getenv("JUDGE_MODEL", "glm-5.3")
+JUDGE_MODEL = os.getenv("JUDGE_MODEL", "deepseek-v4.1-flash")
 
 import hybrid_advisor_langgraph as agent  # noqa: E402
 import openevals_evaluators as m  # noqa: E402

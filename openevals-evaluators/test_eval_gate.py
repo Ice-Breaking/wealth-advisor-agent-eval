@@ -45,8 +45,8 @@ from openevals_evaluators import (
 from regrade_openevals import build_quality, build_security
 
 # 模型默认值落在当前有余量的集合内（历史教训：默认指向已耗尽额度模型会静默 403）
-AGENT_MODEL = os.getenv("AGENT_MODEL", "deepseek-v4-pro-0813")
-JUDGE_MODEL = os.getenv("JUDGE_MODEL", "glm-5.3")
+AGENT_MODEL = os.getenv("AGENT_MODEL", "deepseek-v4.1-flash")
+JUDGE_MODEL = os.getenv("JUDGE_MODEL", "deepseek-v4.1-flash")
 
 # agent 模块在 import 时读取 AGENT_MODEL（默认值可能随额度耗尽而过时），
 # 必须在导入前注入，保证不设环境变量时门控也落在有余量的模型上

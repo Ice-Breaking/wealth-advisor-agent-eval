@@ -9,7 +9,7 @@
 因此对改前已保存的回答用新判官重打一遍，得到同判官可比的两列。
 
 用法：
-    JUDGE_MODEL=deepseek-v4-pro-0813 python regrade_deepeval.py
+    JUDGE_MODEL=deepseek-v4.1-flash python regrade_deepeval.py
 """
 
 import json
@@ -62,7 +62,7 @@ def build_metrics(judge):
 
 
 def main():
-    judge_model = os.getenv("JUDGE_MODEL", "deepseek-v4-pro-0813")
+    judge_model = os.getenv("JUDGE_MODEL", "deepseek-v4.1-flash")
     print(f"新判官 {judge_model}")
     judge = get_judge(judge_model)
 

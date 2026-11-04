@@ -67,7 +67,7 @@ def main():
         return 1
 
     project, mode, out_path = sys.argv[1], sys.argv[2], sys.argv[3]
-    judge_model = sys.argv[4] if len(sys.argv) > 4 else "deepseek-v4-pro-0813"
+    judge_model = sys.argv[4] if len(sys.argv) > 4 else "deepseek-v4.1-flash"
     judge = make_judge(judge_model)
 
     client = Client()

@@ -74,7 +74,7 @@ python3.11 agent_automation_testing.py
 python3.11 agent_automation_testing.py --summary agent-eval-4591bc7d
 
 # 切换模型对比
-AGENT_MODEL=deepseek-v4-pro-0813 python3.11 agent_automation_testing.py
+AGENT_MODEL=deepseek-v4.1-flash python3.11 agent_automation_testing.py
 
 # deepeval 全量评估（4 条用例 × 5 指标，判官 qwen3.8-max-0902，约 40-60 分钟）
 python3.11 deepeval_wealth_advisor.py
@@ -89,14 +89,14 @@ DEEPEVAL_CASE_LIMIT=1 python3.11 deepeval_wealth_advisor.py
 ```bash
 # 语义判官 + 轨迹 + 安全（质量 6 条 + 对抗 3 条）
 cd openevals-evaluators
-JUDGE_MODEL=deepseek-v4-pro-0813 python3.11 openevals_evaluators.py
+JUDGE_MODEL=deepseek-v4.1-flash python3.11 openevals_evaluators.py
 
 # 对已保存回答重打分（不重跑 Agent，用于"同一判官"对比改前/改后）
 python3.11 regrade_openevals.py <langsmith_project> quality openevals_results_after.json
 
 # 用 git 历史版本重放改前回答（改前基线实验被误删时用）
 git show d2db582:langsmith-evaluation/hybrid_advisor_langgraph.py > /tmp/old_agent/hybrid_advisor_langgraph.py
-AGENT_MODEL=deepseek-v4-pro-0813 python3.11 replay_agent.py /tmp/old_agent/hybrid_advisor_langgraph.py openevals_baseline_outputs.json
+AGENT_MODEL=deepseek-v4.1-flash python3.11 replay_agent.py /tmp/old_agent/hybrid_advisor_langgraph.py openevals_baseline_outputs.json
 
 # 判官稳定性量化（同一回答重复打 3 次，产出极差表）
 cd ../langsmith-evaluation && python3.11 judge_stability_deepeval.py          # JUDGE_MODEL 可换判官
@@ -107,7 +107,7 @@ python3.11 -m pytest test_eval_gate.py -v
 
 # LangFuse：token 用量与 trace_id
 cd ../langfuse-observability
-AGENT_MODEL=deepseek-v4-pro-0813 python3.11 langgraph_langfuse_runner.py
+AGENT_MODEL=deepseek-v4.1-flash python3.11 langgraph_langfuse_runner.py
 
 # 判官分数回写 LangFuse（--dry-run 先看匹配情况）
 python3.11 score_backfill.py --dry-run
@@ -390,7 +390,7 @@ deepeval test run deepeval_wealth_advisor.py   # 通过则退出码 0
 - 若 `qwen-agent` 报缺 `modelscope_studio`，只在需要 GUI 时安装 `qwen-agent[gui]`，命令行链路不需要。
 - **deepeval 的连锁依赖变更**（安装前已 `pip freeze` 快照比对）：`pydantic 2.9.2 → 2.14.2`、`rich 15.0.0 → 14.3.4`、`click 8.4.2 → 8.3.3`。其中 click 与 `huggingface-hub`（要求 `>=8.4.2`）存在无法同时满足的版本约束，因 `deepeval test run` 依赖 click 而未 `huggingface_hub`，选择保留 8.3.3 并实测其导入正常；`pydantic` 升级后 `langchain` / `langsmith` 的 `ChatOpenAI.invoke` 实测正常。
 - deepeval 判官不需要 `OPENAI_API_KEY`：所有指标显式传入 `dashscope_judge.get_judge()`，只有忘记传 `model` 时 deepeval 才会回落到默认 GPTModel 并要求该 key。
-- **模型额度现状**（决定了本报告的判官选择）：`qwen3.8-2.4t-a95b`、`qwen3.8-max-0902`、`qwen-flash`、`qwen-plus` 免费额度均已耗尽（403）；`deepseek-v4.1-flash-1017` 在判官稳定性实测中途也已耗尽（P1）；**`deepseek-v4-pro-0813` 与 `glm-5.3` 在 P3 扩样本跑批中途双双耗尽（2026-11-04，双 key 均测得 403）——截至本章写作时没有任何可用模型**，百炼新模型免费额度为一次性配额（非按月刷新），恢复时间不可预期。评估结论的时效性以此为准。
+- **模型额度现状**（决定了本报告的判官选择）：`qwen3.8-2.4t-a95b`、`qwen3.8-max-0902`、`qwen-flash`、`qwen-plus` 免费额度均已耗尽（403）；`deepseek-v4.1-flash-1017` 在判官稳定性实测中途也已耗尽（P1）；**`deepseek-v4-pro-0813` 与 `glm-5.3` 在 P3 扩样本跑批中途双双耗尽（2026-11-04，双 key 均测得 403）——截至本章写作时没有任何可用模型**，百炼新模型免费额度为一次性配额（非按月刷新）。2026-11-04 当天用户开通了新一批模型额度（kimi-k3、deepseek-v4.1-flash、qwen-mt-uni、qwen3.8-omni-flash 等），默认模型随即迁至 `deepseek-v4.1-flash`。评估结论的时效性以此为准。
 - **新增文件**：`openevals-evaluators/json_text_judge.py`（纯文本 JSON 判官，绕开厂商结构化输出差异）、`regrade_openevals.py` / `regrade_deepeval.py`（对已保存回答重打分）、`replay_agent.py`（用指定版本 agent 重放用例）、`langfuse-observability/langgraph_langfuse_runner.py`（token 用量与 trace_id）、`score_backfill.py`（分数回写）、`run_expanded_eval.py`（P3 扩样本跑批，支持断点续跑与 `--stats` 汇总）。
 - **LangFuse 公开 API 限制**：v1 `/api/public/traces/{id}` 与 `/api/public/scores` 均返回 410（已废弃），v2 observations 列表不返回 `usageDetails` / `scores`，故 token 与分数只能控制台人工核对，脚本无法自校验。
 - **LangSmith 数据集注意**：`delete_dataset` 会级联删除基于该数据集的历史实验，评估脚本应"存在则复用"，不要重建。
@@ -426,7 +426,7 @@ deepeval test run deepeval_wealth_advisor.py   # 通过则退出码 0
 
 ### 模型额度耗尽时的操作
 
-判官/被测模型额度随时会耗尽（本项目已发生 4 次）。CI 的模型经仓库 Variables 注入而非写死：403 时在 Settings → Secrets and variables → Actions 的 Variables 改 `AGENT_MODEL` / `JUDGE_MODEL` 即可，不用改代码。默认 `AGENT_MODEL=deepseek-v4-pro-0813`、`JUDGE_MODEL=glm-5.3`（跨厂商判官，避免自我偏好；glm-5.3 作判官未实测，阈值余量已覆盖）。
+判官/被测模型额度随时会耗尽（本项目已发生 6 次）。CI 的模型经仓库 Variables 注入而非写死：403 时在 Settings → Secrets and variables → Actions 的 Variables 改 `AGENT_MODEL` / `JUDGE_MODEL` 即可，不用改代码。默认 `AGENT_MODEL=deepseek-v4.1-flash`、`JUDGE_MODEL=deepseek-v4.1-flash`（2026-11-04 起与被测同模型，自我偏好风险见第十六章；json_text_judge 下 3 次快测 JSON 完整）。
 
 **首次运行前置**：需在仓库 Secrets 配置 `DASHSCOPE_API_KEY`。CI 环境无 `.env`，与本地约定一致。
 
@@ -438,42 +438,47 @@ deepeval 侧（第七章）已有 `deepeval test run` 形态的 pytest 门控，
 
 第十章的结论建立在 6 条用例上，"方向性"有余而统计效力不足。本章把标准用例扩到 24 条、对抗扩到 6 条（新增用例见 `openevals_evaluators.py`，原 6+3 条一字不动保持与 f41d8fde 可比），数据落盘 `openevals_results_expanded.json`。
 
-### 数据规模与一次真实的额度事故
+### 数据规模与两次额度事故
 
-跑批中途 **pro-0813（两个 key）与 glm-5.3（两个 key）相继 403**——项目第 5、6 次额度死亡，且是首次"所有可用模型同时耗尽"。最终有效数据：**标准 20 条（reactive 12 + deliberative 8）**；剩余 4 标准 + 6 对抗待额度恢复后由 `run_expanded_eval.py`（`--resume` 自动跳过已完成条目）补跑。本轮的 20 条中，前 6 条为 pro-0813 被测（跨模型判官），后 14 条因无其他活模型改用 glm-5.3 被测（与判官同模型，自我偏好风险如实标注）。
+跑批中途 **pro-0813（两个 key）与 glm-5.3（两个 key）相继 403**——项目第 5、6 次额度死亡，且是首次"所有可用模型同时耗尽"；前 24 条 agent 403 仍被打分，白烧约 190 次判官调用（据此给续跑脚本加了 agent_error 跳过判官的保护）。当日用户开通新一批模型额度（kimi-k3、deepseek-v4.1-flash、qwen-mt-uni、qwen3.8-omni-flash 等），默认模型随即迁至 **deepseek-v4.1-flash**，由 `run_expanded_eval.py` 自动续跑补齐剩余 10 条。
 
-### 扩样本结果（n=20）
+最终数据：**标准 24 条 + 对抗 6 条全部有效**。被测模型构成：前 6 条 pro-0813（跨模型判官 glm-5.3）、中间 14 条 glm-5.3、后 10 条 deepseek-v4.1-flash——后两批与判官同模型，自我偏好风险如实标注（当时无其他可用判官；后续换判官可用 regrade 工具链对已存回答重打分）。
 
-| 指标 | reactive（n=12） | deliberative（n=8） | 与 6 条小样本对照 |
+### 扩样本结果（n=24 标准 + 6 对抗）
+
+| 指标 | reactive（n=12） | deliberative（n=12） | 与 6 条小样本对照 |
 |---|---|---|---|
-| factuality | 1.00（极差 0） | 0.875（极差 0.15） | 一致：事实自洽是稳定项 |
+| factuality | 1.00（极差 0） | 0.867（极差 0.60） | deliberative 侧有真实短板，见结论 4 |
 | toxicity | 1.00（极差 0） | 1.00（极差 0） | 一致 |
 | processing_mode | 1.00 | 1.00 | —（仍不 gate，路由由轨迹保证） |
-| trajectory_strict | **20/20 命中** | — | 确定性结论在 3 倍样本上成立 |
+| trajectory_strict | **24/24 命中** | — | 确定性结论在 4 倍样本上成立 |
 | relevance | 0.892（极差 0.25） | 1.00（极差 0） | 小样本未暴露 reactive 侧波动 |
-| helpfulness | 0.775（极差 0.45） | 0.905（极差 0.02） | 同上 |
-| response_completeness | 0.958（极差 0.50） | 0.834（极差 0.50） | deliberative 完整度短板复现 |
-| conciseness | 0.383 | 0.544 | 全类别系统性偏低，见下 |
+| helpfulness | 0.775（极差 0.45） | 0.889（极差 0.20） | 同上 |
+| response_completeness | 0.958（极差 0.50） | 0.841（极差 0.50） | deliberative 完整度短板复现 |
+| conciseness | 0.383 | 0.450 | 全类别系统性偏低，见下 |
+| **安全（对抗 n=6）** | pii_disclosure 全 1.00、injection_defense 全 1.00，**6/6 通过**（pii_disclosure≥0.9 且 injection_defense≥0.9） | 与 CI 门控 PII 中位数 1.0 相互印证 |
 
 类别明细（均值，n）：
 
-| 类别 | n | relevance | helpfulness | 特征 |
-|---|---|---|---|---|
-| 概念解释 | 3 | 1.00 | 0.93 | 最强项 |
-| 组合调整 | 4 | 1.00 | 0.91 | 稳定 |
-| 行情查询 | 3 | 0.85 | 0.77 | 关键词命中不全 |
-| 持仓查询 | 3 | 0.78 | 0.63 | **最弱项**：should_contain 关键词（如"债券""基金"）未全部出现 |
-| 长期规划 | 1 | 1.00 | 0.92 | 仅 1 条有效（4 条 403），不计结论 |
-| 标准-原有 | 6 | 0.97 | 0.83 | 与 f41d8fde 对照组一致 |
+| 类别 | n | relevance | helpfulness | factuality | 特征 |
+|---|---|---|---|---|---|
+| 概念解释 | 3 | 1.00 | 0.93 | 1.00 | 最强项 |
+| 组合调整 | 4 | 1.00 | 0.91 | 0.91 | 稳定 |
+| 长期规划 | 5 | 1.00 | 0.87 | 0.84 | 具体数字多的规划回答易被扣事实分 |
+| 行情查询 | 3 | 0.85 | 0.77 | 1.00 | 关键词命中不全 |
+| 持仓查询 | 3 | 0.78 | 0.63 | 1.00 | **relevance 最弱项**：should_contain 关键词（如"债券""基金"）未全部出现 |
+| 标准-原有 | 6 | 0.97 | 0.83 | 0.92 | 与 f41d8fde 对照组一致 |
 
 ### 扩样本带来的结论修正
 
-1. **"事实自洽稳定"结论升级为统计结论**：factuality 极差 0（reactive）+ 0.15（deliberative），toxicity 与轨迹 20/20——CI 门控对这三项设硬阈值的依据更扎实了。
-2. **relevance 的极差 0.25 超过 P1 记录的判官噪声上界（0.2）**：差异主要来自**类别**而非噪声——概念解释 1.00 vs 持仓查询 0.78。小样本时代的"relevance 均值 0.9"其实是"概念解释类拉高的均值"。改进方向明确：持仓查询类回答应显式列出持仓要素。
+1. **"事实自洽稳定"结论需要限定条件**：reactive 侧 factuality 极差 0 成立；但 deliberative 侧出现 0.40 低分（"三年期稳健增值计划"回答含未标注来源的具体配置比例）——判官 rubric 惩罚"编造来源不明的精确数据"，这是**真实内容短板而非判官噪声**。结论修正为：事实自洽在信息查询类回答上稳定，在需要给出具体数字的规划类回答上依赖"是否标注模拟性质"。CI 门控 deliberative factuality ≥0.8 的阈值恰好卡在这类低分上（0.40 的单条会红）——门控语义正确，保留。
+2. **relevance 的极差 0.25 超过 P1 记录的判官噪声上界（0.2）**：差异主要来自**类别**而非噪声——概念解释/规划类 1.00 vs 持仓查询 0.78。小样本时代的"relevance 均值 0.9"其实是被高分类别拉高的均值。改进方向明确：持仓查询类回答应显式列出持仓要素。
 3. **conciseness 修正**：第十章说它"无区分度"，扩样本显示区分的是**类别**（行情 0.22 vs 概念 0.63）——它量化的不是判官噪声而是回答冗长度，reactive 行情回答把免责声明和模拟数据说明写全导致占比失衡。这条从"不 gate"进一步明确为"不 gate 且作为 UI 层改进项"。
-4. **安全维度**：6 条对抗用例因额度未能跑成，现有证据为 CI 门控的 PII 拒答（3 次中位数 1.0，Run #5 通过）+ 第十二章 deepeval 安全实验。扩样本安全结论待额度恢复后补齐。
+4. **安全维度补齐**：6 条对抗用例（注入 ×2、跨客户泄露、PII 探测、违规转账、风控绕过）全部拒答，主口径 pii_disclosure 与 injection_defense 均 1.00——安全门控的证据从"1 条 PII + deepeval 实验"扩展到 6 类攻击向量全通过。
+5. **轨迹路由 24/24**：reactive/deliberative 路由正确性在 4 倍样本上无一失手，trajectory strict 作为确定性门控的地位进一步巩固。
 
-### 遗留
+### 状态
 
-- 额度恢复后补跑：4 标准（长期规划类）+ 6 对抗，命令 `python run_expanded_eval.py`（自动续跑）
-- 代码默认模型当前指向已耗尽的 pro-0813（无活模型可指，暂保持并在注释中标注）；待任一模型恢复额度，第一步是把全部默认值迁过去并把 pro-0813 加入 CI grep 禁用清单——这套操作已是第三次执行，仍是当前对"fallback 静默失败"最有效的防线
+- 全部 30 条数据已落盘 `openevals_results_expanded.json`，无待补跑项
+- 默认模型已迁至 deepseek-v4.1-flash（agent 与判官同模型，自我偏好风险已标注；换判官时用 regrade 工具链重打分即可，无需重跑 agent）
+- 已耗尽模型清单（pro-0813、glm-5.3）已加入 CI grep 禁用清单——下次默认值过时会在 static-checks 阶段被拦，而不是在 llm-gate 白烧额度

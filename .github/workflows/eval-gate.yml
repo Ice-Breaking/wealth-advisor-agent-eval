@@ -39,18 +39,24 @@ jobs:
 
       - name: 默认模型不得指向已耗尽额度模型
         run: |
+          # 每次模型 403 后把它的默认值加入禁用清单；
+          # 模式以完整 ") 结尾——deepseek-v4.1-flash 与已死的 -1017 前缀重叠，避免误杀
           ! grep -rn 'getenv("AGENT_MODEL", "qwen'  --include="*.py" .
           ! grep -rn 'getenv("JUDGE_MODEL", "qwen'  --include="*.py" .
           ! grep -rn 'getenv("AGENT_MODEL", "deepseek-v4.1-flash-1017")' --include="*.py" .
           ! grep -rn 'getenv("JUDGE_MODEL", "deepseek-v4.1-flash-1017")' --include="*.py" .
+          ! grep -rn 'getenv("AGENT_MODEL", "deepseek-v4-pro-0813")' --include="*.py" .
+          ! grep -rn 'getenv("JUDGE_MODEL", "deepseek-v4-pro-0813")' --include="*.py" .
+          ! grep -rn 'getenv("AGENT_MODEL", "glm-5.3")' --include="*.py" .
+          ! grep -rn 'getenv("JUDGE_MODEL", "glm-5.3")' --include="*.py" .
 
   llm-gate:
     runs-on: ubuntu-latest
     needs: static-checks
     env:
       DASHSCOPE_API_KEY: ${{ secrets.DASHSCOPE_API_KEY }}
-      AGENT_MODEL: ${{ vars.AGENT_MODEL || 'deepseek-v4-pro-0813' }}
-      JUDGE_MODEL: ${{ vars.JUDGE_MODEL || 'glm-5.3' }}
+      AGENT_MODEL: ${{ vars.AGENT_MODEL || 'deepseek-v4.1-flash' }}
+      JUDGE_MODEL: ${{ vars.JUDGE_MODEL || 'deepseek-v4.1-flash' }}
     steps:
       - uses: actions/checkout@v4
 
