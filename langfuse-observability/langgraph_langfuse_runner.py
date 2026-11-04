@@ -91,7 +91,7 @@ class UsageCollector(BaseCallbackHandler):
 def run_traced(module, query: str, customer_id: str, kind: str):
     """跑一次查询并上报 LangFuse，返回 (result, trace_id)"""
     client = get_client()
-    model = os.getenv("AGENT_MODEL", "deepseek-v4.1-flash-1017")
+    model = os.getenv("AGENT_MODEL", "deepseek-v4-pro-0813")
     collector = UsageCollector()
 
     # 把回调挂到模块级 llm 上：节点内部是 prompt | llm 的写法，
@@ -180,7 +180,7 @@ def main():
     print("LangGraph + LangFuse 追踪")
     print("=" * 62)
     print(f"LangFuse endpoint: {os.getenv('LANGFUSE_BASE_URL', 'https://cloud.langfuse.com')}")
-    print(f"被测模型: {os.getenv('AGENT_MODEL', 'deepseek-v4.1-flash-1017')}")
+    print(f"被测模型: {os.getenv('AGENT_MODEL', 'deepseek-v4-pro-0813')}")
 
     module = load_agent_module()
     cases = TRACE_CASES[: args.only] if args.only else TRACE_CASES

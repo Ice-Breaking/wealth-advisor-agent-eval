@@ -11,8 +11,8 @@ DeepEval 评估脚本 - 投顾AI助手质量测试
 5. ToolCorrectness  - 工具调用是否选对（Agentic，确定性比对）
 
 判官模型：DashScope 兼容接口的 LLM（经 dashscope_judge.py 适配，不再依赖 OpenAI）。
-默认 deepseek-v4.1-flash-1017，可用 JUDGE_MODEL 环境变量切换；
-qwen3.8-max-0902 曾是最稳的结构化输出判官，但其免费额度已耗尽（403）。
+默认 deepseek-v4-pro-0813，可用 JUDGE_MODEL 环境变量切换；
+额度耗尽史：qwen3.8-max-0902 与 deepseek-v4.1-flash-1017 均已 403。
 
 安装依赖：
     pip install deepeval        # 注意：不要整装 requirements.txt，会降级 langchain
@@ -23,7 +23,7 @@ qwen3.8-max-0902 曾是最稳的结构化输出判官，但其免费额度已耗
 
 环境变量：
     DASHSCOPE_API_KEY: 通义千问 API 密钥（投顾助手 + 判官共用）
-    AGENT_MODEL: 被测模型，默认 deepseek-v4.1-flash-1017
+    AGENT_MODEL: 被测模型，默认 deepseek-v4-pro-0813
 """
 
 import importlib.util
@@ -272,7 +272,7 @@ def dump_results(cases: List[Dict[str, Any]], skipped: List[str]) -> None:
     payload = {
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "judge_model": get_judge().get_model_name(),
-        "agent_model": os.getenv("AGENT_MODEL", "deepseek-v4.1-flash-1017"),
+        "agent_model": os.getenv("AGENT_MODEL", "deepseek-v4-pro-0813"),
         "skipped_cases": skipped,
         "cases": cases,
     }
@@ -311,7 +311,7 @@ def run_evaluation():
     print("=" * 60)
     print(f"开始时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"判官模型: {get_judge().get_model_name()}")
-    print(f"被测模型: {os.getenv('AGENT_MODEL', 'deepseek-v4.1-flash-1017')}")
+    print(f"被测模型: {os.getenv('AGENT_MODEL', 'deepseek-v4-pro-0813')}")
     print()
 
     test_cases = []

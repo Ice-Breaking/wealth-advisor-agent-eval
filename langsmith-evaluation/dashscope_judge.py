@@ -36,9 +36,9 @@ from deepeval.models.base_model import DeepEvalBaseLLM
 from openai import AsyncOpenAI, OpenAI
 from pydantic import BaseModel
 
-# 判官默认 deepseek-v4.1-flash-1017（deepeval 全量评估实际所用模型）；
-# qwen3.8-max-0902 的免费额度已耗尽（403 Free quota exhausted），保留说明仅作历史记录
-DEFAULT_MODEL = os.getenv("JUDGE_MODEL", "deepseek-v4.1-flash-1017")
+# 判官默认 deepseek-v4-pro-0813（P1 稳定性实测可用，deepeval 指标全部跑通过）；
+# 额度耗尽史：qwen3.8-max-0902、deepseek-v4.1-flash-1017 均 403，可用 JUDGE_MODEL 切换
+DEFAULT_MODEL = os.getenv("JUDGE_MODEL", "deepseek-v4-pro-0813")
 BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
 

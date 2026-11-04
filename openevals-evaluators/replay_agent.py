@@ -79,7 +79,7 @@ def main():
     payload = {
         "agent_file": agent_path,
         "replayed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "agent_model": os.getenv("AGENT_MODEL", "deepseek-v4.1-flash-1017"),
+        "agent_model": os.getenv("AGENT_MODEL", "deepseek-v4-pro-0813"),
         "cases": results,
     }
     with open(out_path, "w", encoding="utf-8") as fh:

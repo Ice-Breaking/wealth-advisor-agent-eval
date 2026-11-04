@@ -96,7 +96,7 @@ python3.11 regrade_openevals.py <langsmith_project> quality openevals_results_af
 
 # 用 git 历史版本重放改前回答（改前基线实验被误删时用）
 git show d2db582:langsmith-evaluation/hybrid_advisor_langgraph.py > /tmp/old_agent/hybrid_advisor_langgraph.py
-AGENT_MODEL=deepseek-v4.1-flash-1017 python3.11 replay_agent.py /tmp/old_agent/hybrid_advisor_langgraph.py openevals_baseline_outputs.json
+AGENT_MODEL=deepseek-v4-pro-0813 python3.11 replay_agent.py /tmp/old_agent/hybrid_advisor_langgraph.py openevals_baseline_outputs.json
 
 # 判官稳定性量化（同一回答重复打 3 次，产出极差表）
 cd ../langsmith-evaluation && python3.11 judge_stability_deepeval.py          # JUDGE_MODEL 可换判官
@@ -107,7 +107,7 @@ python3.11 -m pytest test_eval_gate.py -v
 
 # LangFuse：token 用量与 trace_id
 cd ../langfuse-observability
-AGENT_MODEL=deepseek-v4.1-flash-1017 python3.11 langgraph_langfuse_runner.py
+AGENT_MODEL=deepseek-v4-pro-0813 python3.11 langgraph_langfuse_runner.py
 
 # 判官分数回写 LangFuse（--dry-run 先看匹配情况）
 python3.11 score_backfill.py --dry-run

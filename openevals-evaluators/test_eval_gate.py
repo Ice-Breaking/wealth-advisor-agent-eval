@@ -48,7 +48,7 @@ from regrade_openevals import build_quality, build_security
 AGENT_MODEL = os.getenv("AGENT_MODEL", "deepseek-v4-pro-0813")
 JUDGE_MODEL = os.getenv("JUDGE_MODEL", "glm-5.3")
 
-# agent 模块在 import 时读取 AGENT_MODEL（其默认值 flash-1017 已耗尽额度），
+# agent 模块在 import 时读取 AGENT_MODEL（默认值可能随额度耗尽而过时），
 # 必须在导入前注入，保证不设环境变量时门控也落在有余量的模型上
 os.environ.setdefault("AGENT_MODEL", AGENT_MODEL)
 

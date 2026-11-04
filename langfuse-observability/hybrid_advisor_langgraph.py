@@ -69,11 +69,11 @@ LANGSMITH_PROJECT = os.getenv("LANGCHAIN_PROJECT", "wealth-advisor-hybrid-agent"
 print("LANGSMITH_ENABLED=", LANGSMITH_ENABLED)
 
 # 创建LLM实例
-# 模型通过 AGENT_MODEL 环境变量切换，默认 deepseek-v4.1-flash-1017
-# （qwen 系免费额度均已耗尽：qwen3.8-2.4t-a95b / qwen3.8-max / qwen-flash 会返回 403）
+# 模型通过 AGENT_MODEL 环境变量切换，默认 deepseek-v4-pro-0813
+# （额度耗尽史：qwen 系、deepseek-v4.1-flash-1017 均已 403；当前确认有余量：pro-0813 / glm-5.3）
 # 统一走 DashScope 的 OpenAI 兼容接口：qwen3.8 等新模型仅在此接口提供，
 # 且兼容接口同样支持 deepseek 系列，比 langchain_community 的 Tongyi 类覆盖更全
-AGENT_MODEL = os.getenv("AGENT_MODEL", "deepseek-v4.1-flash-1017")
+AGENT_MODEL = os.getenv("AGENT_MODEL", "deepseek-v4-pro-0813")
 
 llm = ChatOpenAI(
     model=AGENT_MODEL,

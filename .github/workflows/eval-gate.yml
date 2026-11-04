@@ -42,6 +42,7 @@ jobs:
           ! grep -rn 'getenv("AGENT_MODEL", "qwen'  --include="*.py" .
           ! grep -rn 'getenv("JUDGE_MODEL", "qwen'  --include="*.py" .
           ! grep -rn 'getenv("AGENT_MODEL", "deepseek-v4.1-flash-1017")' --include="*.py" .
+          ! grep -rn 'getenv("JUDGE_MODEL", "deepseek-v4.1-flash-1017")' --include="*.py" .
 
   llm-gate:
     runs-on: ubuntu-latest
