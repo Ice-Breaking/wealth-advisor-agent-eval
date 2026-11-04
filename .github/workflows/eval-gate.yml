@@ -54,7 +54,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: 前置检查 secret 已配置
-        if: ${{ secrets.DASHSCOPE_API_KEY == '' }}
+        if: ${{ env.DASHSCOPE_API_KEY == '' }}
         run: |
           echo "::error::未配置 DASHSCOPE_API_KEY secret（Settings → Secrets and variables → Actions）"
           exit 1
