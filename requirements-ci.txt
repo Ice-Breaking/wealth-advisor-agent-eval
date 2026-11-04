@@ -4,5 +4,5 @@ langgraph>=0.2
 langchain>=0.3
 langchain-core>=0.3
 langchain-openai>=0.2
-openevals>=0.4
+openevals>=0.1   # PyPI 最新 0.2.2，不要写超过实际版本的约束
 pytest>=8.0
