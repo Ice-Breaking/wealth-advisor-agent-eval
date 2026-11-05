@@ -11,7 +11,7 @@ DeepEval 评估脚本 - 投顾AI助手质量测试
 5. ToolCorrectness  - 工具调用是否选对（Agentic，确定性比对）
 
 判官模型：DashScope 兼容接口的 LLM（经 dashscope_judge.py 适配，不再依赖 OpenAI）。
-默认 deepseek-v4.1-flash，可用 JUDGE_MODEL 环境变量切换；
+默认 qwen3.8-omni-flash，可用 JUDGE_MODEL 环境变量切换；
 额度耗尽史：qwen3.8-max-0902 与 deepseek-v4.1-flash-1017 均已 403。
 
 安装依赖：
@@ -23,7 +23,7 @@ DeepEval 评估脚本 - 投顾AI助手质量测试
 
 环境变量：
     DASHSCOPE_API_KEY: 通义千问 API 密钥（投顾助手 + 判官共用）
-    AGENT_MODEL: 被测模型，默认 deepseek-v4.1-flash
+    AGENT_MODEL: 被测模型，默认 qwen3.8-omni-flash
 """
 
 import importlib.util
@@ -272,7 +272,7 @@ def dump_results(cases: List[Dict[str, Any]], skipped: List[str]) -> None:
     payload = {
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "judge_model": get_judge().get_model_name(),
-        "agent_model": os.getenv("AGENT_MODEL", "deepseek-v4.1-flash"),
+        "agent_model": os.getenv("AGENT_MODEL", "qwen3.8-omni-flash"),
         "skipped_cases": skipped,
         "cases": cases,
     }

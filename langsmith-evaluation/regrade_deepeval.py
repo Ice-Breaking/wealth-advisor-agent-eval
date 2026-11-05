@@ -62,7 +62,7 @@ def build_metrics(judge):
 
 
 def main():
-    judge_model = os.getenv("JUDGE_MODEL", "deepseek-v4.1-flash")
+    judge_model = os.getenv("JUDGE_MODEL", "qwen3.8-omni-flash")
     print(f"新判官 {judge_model}")
     judge = get_judge(judge_model)
 

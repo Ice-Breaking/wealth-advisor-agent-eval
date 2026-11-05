@@ -390,7 +390,7 @@ deepeval test run deepeval_wealth_advisor.py   # 通过则退出码 0
 - 若 `qwen-agent` 报缺 `modelscope_studio`，只在需要 GUI 时安装 `qwen-agent[gui]`，命令行链路不需要。
 - **deepeval 的连锁依赖变更**（安装前已 `pip freeze` 快照比对）：`pydantic 2.9.2 → 2.14.2`、`rich 15.0.0 → 14.3.4`、`click 8.4.2 → 8.3.3`。其中 click 与 `huggingface-hub`（要求 `>=8.4.2`）存在无法同时满足的版本约束，因 `deepeval test run` 依赖 click 而未 `huggingface_hub`，选择保留 8.3.3 并实测其导入正常；`pydantic` 升级后 `langchain` / `langsmith` 的 `ChatOpenAI.invoke` 实测正常。
 - deepeval 判官不需要 `OPENAI_API_KEY`：所有指标显式传入 `dashscope_judge.get_judge()`，只有忘记传 `model` 时 deepeval 才会回落到默认 GPTModel 并要求该 key。
-- **模型额度现状**（决定了本报告的判官选择）：`qwen3.8-2.4t-a95b`、`qwen3.8-max-0902`、`qwen-flash`、`qwen-plus` 免费额度均已耗尽（403）；`deepseek-v4.1-flash-1017` 在判官稳定性实测中途也已耗尽（P1）；**`deepseek-v4-pro-0813` 与 `glm-5.3` 在 P3 扩样本跑批中途双双耗尽（2026-11-04，双 key 均测得 403）——截至本章写作时没有任何可用模型**，百炼新模型免费额度为一次性配额（非按月刷新）。2026-11-04 当天用户开通了新一批模型额度（kimi-k3、deepseek-v4.1-flash、qwen-mt-uni、qwen3.8-omni-flash 等），默认模型随即迁至 `deepseek-v4.1-flash`。评估结论的时效性以此为准。
+- **模型额度现状**（决定了本报告的判官选择）：`qwen3.8-2.4t-a95b`、`qwen3.8-max-0902`、`qwen-flash`、`qwen-plus`、`deepseek-v4.1-flash-1017`、`deepseek-v4-pro-0813`、`glm-5.3`（P3 中途）、`deepseek-v4.1-flash`（P5 中途）、`kimi-k3`（P5 中途）均已 403——累计 9 次额度死亡。2026-11-05 起默认模型为 `qwen3.8-omni-flash`（当日三模型连环耗尽后的最终存活者，判官/agent 双实测通过）。百炼新模型免费额度为一次性配额（非按月刷新），且单模型配额约支撑 10-20 条完整评估——评估结论的时效性以此为准。
 - **新增文件**：`openevals-evaluators/json_text_judge.py`（纯文本 JSON 判官，绕开厂商结构化输出差异）、`regrade_openevals.py` / `regrade_deepeval.py`（对已保存回答重打分）、`replay_agent.py`（用指定版本 agent 重放用例）、`langfuse-observability/langgraph_langfuse_runner.py`（token 用量与 trace_id）、`score_backfill.py`（分数回写）、`run_expanded_eval.py`（P3 扩样本跑批，支持断点续跑与 `--stats` 汇总）。
 - **LangFuse 公开 API 限制**：v1 `/api/public/traces/{id}` 与 `/api/public/scores` 均返回 410（已废弃），v2 observations 列表不返回 `usageDetails` / `scores`，故 token 与分数只能控制台人工核对，脚本无法自校验。
 - **LangSmith 数据集注意**：`delete_dataset` 会级联删除基于该数据集的历史实验，评估脚本应"存在则复用"，不要重建。
@@ -561,3 +561,38 @@ kimi-k3 对 30 条已存回答重打分（quality 24 条 + security 6 条），�
 ### 状态
 
 P0-P4 全部闭环：默认模型治理 → 判官稳定性量化 → CI 门控 → 扩样本统计（30 条）→ 判官可信度双验证 → 多轮架构与评估（36 条累计）。遗留小项：路由边界模糊带（概念+对比）记录在案不改；deepeval 门控保持本地手跑定位。
+
+## 十九、prompt 微调回归（P5）
+
+第十八章遗留的"路由边界模糊带（概念+对比）不改"在 P5 被推翻为"改"——因为验证手段已就位（多轮用例即现成回归用例），且第十六章的 factuality 0.40 短板同属 prompt 可修。本章完成评估闭环的最后一环：**发现短板 → 修复 → 数据裁决**。
+
+### 两处微调（只动模板字符串，业务逻辑零改动）
+
+1. **ASSESSMENT_PROMPT 路由指引**（修目标①）：在模式定义后追加——"仅解释概念或做一般性对比说明、不要求结合客户个人情况给出方案的查询（如'什么是定投？和一次性买入比有什么好处？'）用 reactive；明确要求结合客户情况给出具体方案/配置的才用 deliberative"
+2. **RECOMMENDATION_PROMPT 数字标注硬条款**（修目标②）：将"涉及具体数字时说明其为模拟测算"从软性约束升级为硬性格式要求——"凡出现具体配置比例、收益率、金额等数字，必须在该数字后紧跟标注'（模拟测算）'，不得省略——未标注来源的精确数字会被视为编造数据"
+
+### 裁决：两处修复，无塌陷，采纳
+
+**目标①（路由）——行为级跨模型三重验证**："什么是定投？它和一次性买入比有什么好处？"在 kimi-k3、qwen3.8-omni-flash 两个 agent 上均路由 reactive（微调前 flash 误路由 deliberative），且 assess 的 reasoning 明确引用了新指引——修复生效于 prompt 本身而非特定模型。微调后标准 24/24 路由全对（含"资产配置为什么比选单只股票更重要"这类对比结构），与微调前持平。
+
+**目标②（数字标注）——低分尾巴彻底消除**：
+
+| 指标 | 微调前 | 微调后 | 判读 |
+|---|---|---|---|
+| 长期规划 factuality 最低单条 | **0.40** | **0.85** | 0.60 极差 → 0.10，编造型低分消除 |
+| 长期规划 factuality 均值（n=5） | 0.840 | 0.890 | 且分布从两极（0.4/0.8-1.0）变紧凑（0.85-0.95） |
+| deliberative factuality 均值（n=12） | 0.867 | 0.942 | 全类受益 |
+| deliberative response_completeness | 0.841 | 0.917 | 标注要求同时改善了完整度 |
+| 行为抽查（三年期计划） | 未标注精确数字 | 17 个百分比、16 次"（模拟测算）" | 硬条款被遵守 |
+
+**塌陷审查（0.1 阈值）——全部通过**：标准 24 条逐指标均值对比，最大偏差为 reactive conciseness −0.079（数字标注增加篇幅的已知代价，conciseness 本就不 gate，归 UI 层已知项）；其余全部 ≤0.079 且多数为改善方向。轨迹 24/24、对抗安全 6/6 保持。
+
+### 数据构成与如实标注
+
+微调后基线 `openevals_results_post_tune.json`（31/36 有效）：17 条 flash agent（flash 判官）→ 8 条 kimi agent（kimi 判官）→ 6 条 omni agent（omni 判官）——agent 与判官三段混合，跨判官偏差 ≤0.013 已实测（第十七章），分数级对比成立。缺 5 条多轮（额度事故，resume 机制一条命令补齐）。
+
+**当天的额度连环事故（第 7-9 次模型死亡）**：微调验证期间 deepseek-v4.1-flash、kimi-k3、qwen3.8-omni-flash 三个模型在跑批中相继 403——免费配额每模型仅能支撑 10-20 条完整评估。三次默认值迁移均按既有流程执行（迁移 + CI 禁用清单 + 静态检查全过才推送），agent_error 跳过判官的保护使零判官调用浪费。最终默认模型 qwen3.8-omni-flash（判官/agent 双快测通过）。**方法论教训**：跨模型的"行为级"验证（路由结果、文本标注——确定性检查）比"分数级"对比更抗额度事故——本章目标①的验证因此未受三次模型死亡影响。
+
+### 状态
+
+P0-P5 全部闭环，评估方法论完整演示：发现短板（扩样本）→ 归因（类别差异 vs 噪声）→ 修复（prompt 微调）→ 数据裁决（采纳，无塌陷）→ 沉淀（旧基线保留 + resume 机制）。微调后基线为最新参考；待补 5 条多轮（`python run_expanded_eval.py` 自动续跑）。

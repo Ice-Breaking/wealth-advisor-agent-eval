@@ -49,14 +49,18 @@ jobs:
           ! grep -rn 'getenv("JUDGE_MODEL", "deepseek-v4-pro-0813")' --include="*.py" .
           ! grep -rn 'getenv("AGENT_MODEL", "glm-5.3")' --include="*.py" .
           ! grep -rn 'getenv("JUDGE_MODEL", "glm-5.3")' --include="*.py" .
+          ! grep -rn 'getenv("AGENT_MODEL", "deepseek-v4.1-flash")' --include="*.py" .
+          ! grep -rn 'getenv("JUDGE_MODEL", "deepseek-v4.1-flash")' --include="*.py" .
+          ! grep -rn 'getenv("AGENT_MODEL", "kimi-k3")' --include="*.py" .
+          ! grep -rn 'getenv("JUDGE_MODEL", "kimi-k3")' --include="*.py" .
 
   llm-gate:
     runs-on: ubuntu-latest
     needs: static-checks
     env:
       DASHSCOPE_API_KEY: ${{ secrets.DASHSCOPE_API_KEY }}
-      AGENT_MODEL: ${{ vars.AGENT_MODEL || 'deepseek-v4.1-flash' }}
-      JUDGE_MODEL: ${{ vars.JUDGE_MODEL || 'deepseek-v4.1-flash' }}
+      AGENT_MODEL: ${{ vars.AGENT_MODEL || 'qwen3.8-omni-flash' }}
+      JUDGE_MODEL: ${{ vars.JUDGE_MODEL || 'qwen3.8-omni-flash' }}
     steps:
       - uses: actions/checkout@v4
 

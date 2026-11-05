@@ -73,7 +73,7 @@ print("LANGSMITH_ENABLED=", LANGSMITH_ENABLED)
 # （额度耗尽史：qwen 系、deepseek-v4.1-flash-1017、deepseek-v4-pro-0813、glm-5.3 均已 403；当前余量：deepseek-v4.1-flash、kimi-k3、qwen-mt-uni 等）
 # 统一走 DashScope 的 OpenAI 兼容接口：qwen3.8 等新模型仅在此接口提供，
 # 且兼容接口同样支持 deepseek 系列，比 langchain_community 的 Tongyi 类覆盖更全
-AGENT_MODEL = os.getenv("AGENT_MODEL", "deepseek-v4.1-flash")
+AGENT_MODEL = os.getenv("AGENT_MODEL", "qwen3.8-omni-flash")
 
 llm = ChatOpenAI(
     model=AGENT_MODEL,
@@ -177,6 +177,12 @@ ASSESSMENT_PROMPT = """你是一个财富管理投顾AI助手的协调层。请�
 2. 建议的处理模式:
    - "reactive": 适用于需要快速反应的查询
    - "deliberative": 适用于需要深度思考和分析的查询
+
+路由判定指引（P5 微调，修复"概念+对比"类误路由）:
+- 仅解释概念、或做一般性对比说明、不要求结合客户个人情况给出方案的查询
+  （如"什么是定投？和一次性买入比有什么好处？"），用 reactive
+- 明确要求结合客户情况给出具体方案、配置或规划的（如"给我设计一个定投方案"），
+  才用 deliberative
 
 请以JSON格式返回结果，包含以下字段:
 - query_type: 查询类型（上述三种类型之一）
@@ -291,7 +297,9 @@ RECOMMENDATION_PROMPT = """你是一个财富管理投顾AI助手。请根据深
 硬性约束：
 - 全文不超过 900 字
 - 不重复罗列同一风险点，不堆砌免责声明
-- 涉及具体数字时说明其为模拟测算
+- 数字标注（硬性格式要求，P5 微调）：凡出现具体配置比例、收益率、金额等数字，
+  必须在该数字后紧跟标注"（模拟测算）"，不得省略——未标注来源的精确数字
+  会被视为编造数据
 
 返回格式应为自然语言文本，适合直接呈现给客户。
 """

@@ -842,7 +842,7 @@ def evaluate_wealth_advisor():
     # 2. 创建评估 LLM
     # qwen3.8-max 额度耗尽后，改用 JsonTextJudge 包一层"纯文本 JSON"，
     # 绕开 deepseek / glm 在 with_structured_output 上的不稳定实现
-    JUDGE_MODEL = os.getenv("JUDGE_MODEL", "deepseek-v4.1-flash")
+    JUDGE_MODEL = os.getenv("JUDGE_MODEL", "qwen3.8-omni-flash")
     eval_llm = make_judge(JUDGE_MODEL)
     print(f"  判官模型: {JUDGE_MODEL}（纯文本 JSON 模式）")
 

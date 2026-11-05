@@ -5,7 +5,7 @@
 判官稳定性量化（openevals 侧）：同一判官对同一份固定回答重复打分
 
 与 judge_stability_deepeval.py 同一目的、同一批固定回答、同一判读规则，
-区别只在框架与判官模型：本脚本用 JsonTextJudge（默认 deepseek-v4.1-flash）+ 7 个质量指标。
+区别只在框架与判官模型：本脚本用 JsonTextJudge（默认 qwen3.8-omni-flash）+ 7 个质量指标。
 
 固定回答来源：../langsmith-evaluation/deepeval_results.json 的 actual_output（改后复测，不重跑 Agent）。
 reference_outputs 按 STANDARD_CASES 索引显式映射——两边 query 文本有细微差异（如"表现如何"vs"的表现如何"），
@@ -84,7 +84,7 @@ def dump(payload):
 
 
 def main():
-    judge_model = os.getenv("JUDGE_MODEL", "deepseek-v4.1-flash")
+    judge_model = os.getenv("JUDGE_MODEL", "qwen3.8-omni-flash")
     judge = make_judge(judge_model)
     evaluators = build_quality(judge)
     trajectory_evaluator = make_trajectory_evaluator()

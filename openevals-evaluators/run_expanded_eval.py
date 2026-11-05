@@ -15,7 +15,7 @@ P3 扩样本评估：24 条标准 + 6 条对抗 + 6 条多轮，全量跑 openev
     python run_expanded_eval.py            # 全量跑（自动跳过已完成条目）
     python run_expanded_eval.py --stats    # 只汇总已有结果的分维度统计，不调模型
 
-环境变量：AGENT_MODEL（默认 deepseek-v4.1-flash）、JUDGE_MODEL（默认 deepseek-v4.1-flash）、
+环境变量：AGENT_MODEL（默认 qwen3.8-omni-flash）、JUDGE_MODEL（默认 deepseek-v4.1-flash）、
          DASHSCOPE_API_KEY 必需、EXPANDED_OUT 可改输出文件名
 """
 
@@ -25,10 +25,10 @@ import sys
 import time
 from datetime import datetime
 
-AGENT_MODEL = os.getenv("AGENT_MODEL", "deepseek-v4.1-flash")
+AGENT_MODEL = os.getenv("AGENT_MODEL", "qwen3.8-omni-flash")
 # agent 模块在 import 时读取 AGENT_MODEL，必须在导入前注入
 os.environ.setdefault("AGENT_MODEL", AGENT_MODEL)
-JUDGE_MODEL = os.getenv("JUDGE_MODEL", "deepseek-v4.1-flash")
+JUDGE_MODEL = os.getenv("JUDGE_MODEL", "qwen3.8-omni-flash")
 
 import hybrid_advisor_langgraph as agent  # noqa: E402
 import openevals_evaluators as m  # noqa: E402

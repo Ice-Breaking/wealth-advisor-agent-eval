@@ -36,9 +36,9 @@ from deepeval.models.base_model import DeepEvalBaseLLM
 from openai import AsyncOpenAI, OpenAI
 from pydantic import BaseModel
 
-# 判官默认 deepseek-v4.1-flash（reasoning 模型；json_text_judge 下 3 次快测 JSON 完整）；
+# 判官默认 qwen3.8-omni-flash（判官与 agent 双实测可用）；
 # 额度耗尽史：qwen3.8-max-0902、deepseek-v4.1-flash-1017 均 403，可用 JUDGE_MODEL 切换
-DEFAULT_MODEL = os.getenv("JUDGE_MODEL", "deepseek-v4.1-flash")
+DEFAULT_MODEL = os.getenv("JUDGE_MODEL", "qwen3.8-omni-flash")
 BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
 

@@ -91,7 +91,7 @@ class UsageCollector(BaseCallbackHandler):
 def run_traced(module, query: str, customer_id: str, kind: str):
     """跑一次查询并上报 LangFuse，返回 (result, trace_id)"""
     client = get_client()
-    model = os.getenv("AGENT_MODEL", "deepseek-v4.1-flash")
+    model = os.getenv("AGENT_MODEL", "qwen3.8-omni-flash")
     collector = UsageCollector()
 
     # 把回调挂到模块级 llm 上：节点内部是 prompt | llm 的写法，
