@@ -62,7 +62,8 @@ jobs:
 
       - name: 离线特征测试与规格测试（零额度，秒级）
         run: |
-          pip install pytest
+          # 测试 import agent/判官模块，需要 langchain 系包（与 llm-gate 共用清单）
+          pip install -r requirements-ci.txt
           python -m pytest tests/ -q
 
   llm-gate:
