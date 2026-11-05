@@ -36,9 +36,9 @@ from deepeval.models.base_model import DeepEvalBaseLLM
 from openai import AsyncOpenAI, OpenAI
 from pydantic import BaseModel
 
-# 判官默认 qwen3.8-omni-flash（判官与 agent 双实测可用）；
+# 判官默认 kimi-k3.1-pro（判官与 agent 双实测可用）；
 # 额度耗尽史：qwen3.8-max-0902、deepseek-v4.1-flash-1017 均 403，可用 JUDGE_MODEL 切换
-DEFAULT_MODEL = os.getenv("JUDGE_MODEL", "qwen3.8-omni-flash")
+DEFAULT_MODEL = os.getenv("JUDGE_MODEL", "kimi-k3.1-pro")
 BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
 

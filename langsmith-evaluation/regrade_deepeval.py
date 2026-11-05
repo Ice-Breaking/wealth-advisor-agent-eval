@@ -62,7 +62,7 @@ def build_metrics(judge):
 
 
 def main():
-    judge_model = os.getenv("JUDGE_MODEL", "qwen3.8-omni-flash")
+    judge_model = os.getenv("JUDGE_MODEL", "kimi-k3.1-pro")
     print(f"新判官 {judge_model}")
     judge = get_judge(judge_model)
 

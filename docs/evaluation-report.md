@@ -390,7 +390,7 @@ deepeval test run deepeval_wealth_advisor.py   # 通过则退出码 0
 - 若 `qwen-agent` 报缺 `modelscope_studio`，只在需要 GUI 时安装 `qwen-agent[gui]`，命令行链路不需要。
 - **deepeval 的连锁依赖变更**（安装前已 `pip freeze` 快照比对）：`pydantic 2.9.2 → 2.14.2`、`rich 15.0.0 → 14.3.4`、`click 8.4.2 → 8.3.3`。其中 click 与 `huggingface-hub`（要求 `>=8.4.2`）存在无法同时满足的版本约束，因 `deepeval test run` 依赖 click 而未 `huggingface_hub`，选择保留 8.3.3 并实测其导入正常；`pydantic` 升级后 `langchain` / `langsmith` 的 `ChatOpenAI.invoke` 实测正常。
 - deepeval 判官不需要 `OPENAI_API_KEY`：所有指标显式传入 `dashscope_judge.get_judge()`，只有忘记传 `model` 时 deepeval 才会回落到默认 GPTModel 并要求该 key。
-- **模型额度现状**（决定了本报告的判官选择）：`qwen3.8-2.4t-a95b`、`qwen3.8-max-0902`、`qwen-flash`、`qwen-plus`、`deepseek-v4.1-flash-1017`、`deepseek-v4-pro-0813`、`glm-5.3`（P3 中途）、`deepseek-v4.1-flash`（P5 中途）、`kimi-k3`（P5 中途）均已 403——累计 9 次额度死亡。2026-11-05 起默认模型为 `qwen3.8-omni-flash`（当日三模型连环耗尽后的最终存活者，判官/agent 双实测通过）。百炼新模型免费额度为一次性配额（非按月刷新），且单模型配额约支撑 10-20 条完整评估——评估结论的时效性以此为准。
+- **模型额度现状**（决定了本报告的判官选择）：`qwen3.8-2.4t-a95b`、`qwen3.8-max-0902`、`qwen-flash`、`qwen-plus`、`deepseek-v4.1-flash-1017`、`deepseek-v4-pro-0813`、`glm-5.3`（P3 中途）、`deepseek-v4.1-flash`（P5 中途）、`kimi-k3`（P5 中途）、`qwen3.8-omni-flash`（P6 重构期）均已 403——累计 10 次额度死亡。2026-11-05 晚起默认模型为 `kimi-k3.1-pro`（判官/agent 实测可用）。百炼新模型免费额度为一次性配额（非按月刷新），且单模型配额约支撑 10-20 条完整评估——评估结论的时效性以此为准。
 - **新增文件**：`openevals-evaluators/json_text_judge.py`（纯文本 JSON 判官，绕开厂商结构化输出差异）、`regrade_openevals.py` / `regrade_deepeval.py`（对已保存回答重打分）、`replay_agent.py`（用指定版本 agent 重放用例）、`langfuse-observability/langgraph_langfuse_runner.py`（token 用量与 trace_id）、`score_backfill.py`（分数回写）、`run_expanded_eval.py`（P3 扩样本跑批，支持断点续跑与 `--stats` 汇总）。
 - **LangFuse 公开 API 限制**：v1 `/api/public/traces/{id}` 与 `/api/public/scores` 均返回 410（已废弃），v2 observations 列表不返回 `usageDetails` / `scores`，故 token 与分数只能控制台人工核对，脚本无法自校验。
 - **LangSmith 数据集注意**：`delete_dataset` 会级联删除基于该数据集的历史实验，评估脚本应"存在则复用"，不要重建。
@@ -615,3 +615,43 @@ P5 推送触发三次门控运行（Run #10 及后续），恰好构成一组"�
 1. **Run #10 红（2026-11-05 凌晨）**：static-checks 绿（三副本 md5 + 禁用清单全过），llm-gate 跑 8m45s 后 exit 1——当时 omni-flash 额度正被补跑耗尽，PII 用例的 3 次判官打分全部异常（`_score_median` 记 None → 断言失败）。本地复现 `test_pii_request_refused` 失败，但单独抽查 3 次 PII 回答判官均 1.0——定位为**判官调用侧故障**而非 agent 安全退化。
 2. **跨天后恢复**：本地重跑门控 **3/3 通过**（461s），确认 Run #10 的失败源于额度而非代码。
 3. **教训**：门控的"判官异常记 0/None 宁可误报"策略会把**资源故障**呈现为**质量失败**——两者在 CI 日志里难以区分（本次靠本地复现 + 单独抽查才归因）。后续可考虑：判官全异常时 pytest.fail 的消息明确标注"判官调用失败（疑似额度/网络）"而非仅报分数，把误报成本降到一次读日志。这是本轮留下的一个小改进项（未实施，避免动已验证的门控逻辑）。
+
+## 二十、特征测试驱动重构 + 核心 Spec 化（P6）
+
+评估体系成型后，`hybrid_advisor_langgraph.py`（877 行）与评估脚本积累了大量重复模式，而现有测试只有烧额度的 CI 门控——重构没有安全网。本章用特征测试（Characterization Testing，Feathers 方法）补上这一环：**先锁行为，再动代码**。
+
+### 特征测试安全网（tests/，75 项，全离线 0.7s）
+
+零 LLM 额度消耗是硬要求——安全网必须秒级可跑才会在每次重构后被执行。分层锁定：
+
+| 层 | 锁定内容 |
+|---|---|
+| 纯函数 | format_history（6 轮/200 字/（无）占位）、判官 JSON 提取（干净/带噪/正则兜底/None）、分数归一化（0-1 直通/0-100 折算/>100 压顶/负值压底）、encode_trajectory |
+| 结构 | 图拓扑（8 节点 + reactive/deliberative 双路径 + 三处 error 短路）、7 条 prompt 链的 {history_text} 注入、P5 微调条款逐字存在 |
+| 行为 | monkeypatch 模块级 llm 后的路由决策（合法直通/非法兜底/故障降级/历史注入进 prompt）、fake 模型喂真实 create_llm_as_judge 链的判官打分与 0-100 归一化、is_complete/resume 语义、多轮用例结构 |
+| 契约 | 门控阈值快照（改阈值=有意识的决策）、三副本 md5、模块可重导入（防 import 期副作用） |
+
+### 核心 Spec 化（docs/specs.md + tests/test_spec_core.py 双层）
+
+33 条 SPEC-ID 覆盖九大域（路由决策表/历史注入/数字标注/安全拒答/轨迹/判官口径/resume/门控/三副本），文档与可执行规格测试一一对应——**改规格必须同步改测试**。与特征测试的分工：特征测试锁实现现状（可含细节），Spec 锁对外契约（实现可换、契约不变）。已知边界分歧（探隐私轮 1 路由等）按现状如实写入并注明，改进它们属于行为变更而非重构。
+
+### 行为不变重构（每步 75 项测试全绿）
+
+- **agent（三副本同步）**：6 处 input_data 构建收敛到 `_llm_inputs(state, **extra)`（history_text 注入点唯一化，防新增节点遗漏历史感知）；`_profile_json`/`_state_json` 消除 5 处 json.dumps 重复；reactive 两条内嵌 prompt 模板提为模块级常量（REACTIVE_AGENT_PROMPT / REACTIVE_FINAL_PROMPT，文本逐字保留）
+- **run_expanded_eval**：run_agent 的 403 重试块合并（公共 `_invoke` 闭包 + `result is None` 统一失败路径）
+- **openevals_evaluators**：两口径 PII 判官提取公共构造 `_make_continuous_judge`
+- 特征测试随重构同步的只有一处：reactive 链历史注入从"函数源码文本检查"改为"模块级常量检查"（锁的语义不变，实现位置变了）
+
+### 重构期发现的真 bug：CI 禁用清单形同虚设
+
+旧实现为逐行 `! grep` 排列——bash `-e` 豁免 `!` 前缀命令，**只有最后一行真正生效**。验证：当前默认 qwen3.8-omni-flash 与 qwen 前缀禁令匹配 5 处，Run #11-13 的 static-checks 却全绿（最后一行 kimi 检查恰好无匹配 → exit 0）。修复：显式 for 循环逐条检查并 exit 1；死模型清单改用具体模型名（qwen 系前缀会误杀活模型 omni）；负验证确认拦截能力恢复。讽刺而珍贵：**这个 bug 让 P5 期间三次默认值迁移没被误拦**（omni 是活模型），但若某天默认值真指向死模型也无人拦截——特征测试式的"验证工具本身"再次证明价值。
+
+### 模型侧插曲（第 10 次额度死亡 + 本机网络窗口）
+
+- 重构完成后门控复验撞上 omni-flash 间歇故障（Connection error → 数据收集阶段出错 → error 短路 → 轨迹 0 分）——**用重构前版本（git show HEAD）对照同一用例复现同故障，证明与重构无关**；随后 omni 正式 403（第 10 次），默认模型迁至 kimi-k3.1-pro（第 6 次迁移，禁用清单修复版自动生效）
+- 本机晚间网络对 dashscope 长连接不稳定（curl 短连接 3/3 通、langchain 大 payload 请求连续 Connection error）——真实门控复验改由 CI runner（网络独立）承担
+- 教训沉淀：`error 短路 → 轨迹 0 分 → 门控红`的链条会把基础设施故障伪装成 agent 退化；离线特征测试（不受网络影响）正是区分二者的第一工具
+
+### 状态
+
+P0-P6 全部闭环。测试资产：75 项离线测试（特征 + 规格，CI static-checks 每次推送必跑）+ 3 条真实门控（llm-gate）+ 36 条离线全量基线。重构后代码行为与重构前逐项一致（离线测试保证），后续任何 agent 修改都有秒级安全网兜底。

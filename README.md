@@ -82,6 +82,8 @@ push 到 main 时 GitHub Actions（`.github/workflows/eval-gate.yml`）自动运
 
 **扩样本统计**：全量用例（24 标准 + 6 对抗 + 6 多轮）离线跑批用 `openevals-evaluators/run_expanded_eval.py`——中断后重跑同命令即自动续跑（已完成条目跳过），`--stats` 只汇总不调模型。CI 门控刻意保持 3 条小样本以控制每次推送成本。结果与结论见 `docs/evaluation-report.md` 第十六、十八、十九章。
 
+**离线测试与规格**：`tests/` 含 75 项零额度特征测试与可执行规格（秒级），CI static-checks 每次推送必跑；核心功能规格见 `docs/specs.md`（SPEC-ID 与测试一一对应，改规格必须同步改测试）。重构 agent 前先跑 `pytest tests/ -q` 建立基线，改完再跑全绿即行为未变。
+
 **数据文件角色**：`openevals_results_expanded.json` 为微调前基线（P4 36 条）；`openevals_results_post_tune.json` 为 P5 prompt 微调后基线（36/36 全量）。两份保留可追溯，对比结论见报告第十九章。
 
 **多轮支持**：agent 的 `run_wealth_advisor` 接受可选 `chat_history`（`[{"role": "user"/"assistant", "content": ...}]`），单轮调用不传即行为不变；多轮用例见 `openevals_evaluators.py` 的 `MULTI_TURN_CASES`（含跨轮路由变化与多轮铺垫注入场景）。

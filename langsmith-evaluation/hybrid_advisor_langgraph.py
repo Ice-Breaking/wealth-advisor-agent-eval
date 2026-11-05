@@ -73,7 +73,7 @@ print("LANGSMITH_ENABLED=", LANGSMITH_ENABLED)
 # （额度耗尽史：qwen 系、deepseek-v4.1-flash-1017、deepseek-v4-pro-0813、glm-5.3 均已 403；当前余量：deepseek-v4.1-flash、kimi-k3、qwen-mt-uni 等）
 # 统一走 DashScope 的 OpenAI 兼容接口：qwen3.8 等新模型仅在此接口提供，
 # 且兼容接口同样支持 deepseek 系列，比 langchain_community 的 Tongyi 类覆盖更全
-AGENT_MODEL = os.getenv("AGENT_MODEL", "qwen3.8-omni-flash")
+AGENT_MODEL = os.getenv("AGENT_MODEL", "kimi-k3.1-pro")
 
 llm = ChatOpenAI(
     model=AGENT_MODEL,
@@ -159,6 +159,25 @@ def format_history(chat_history: Optional[List[Dict[str, str]]]) -> str:
         content = str(item.get("content", ""))[:HISTORY_ITEM_MAX_CHARS]
         lines.append(f"{role}: {content}")
     return "\n".join(lines)
+
+
+def _llm_inputs(state: "WealthAdvisorState", **extra: Any) -> Dict[str, Any]:
+    """各节点 LLM 输入的公共构建：统一注入历史文本（P4 多轮支持）。
+
+    所有 prompt 链的输入都必须经过这里，保证 {history_text} 注入点唯一、
+    不会在新增节点时遗漏历史感知能力。
+    """
+    return {"history_text": format_history(state.get("chat_history")), **extra}
+
+
+def _profile_json(state: "WealthAdvisorState") -> str:
+    """客户画像的 JSON 文本化（deliberative 系节点共用）。"""
+    return json.dumps(state.get("customer_profile", {}), ensure_ascii=False, indent=2)
+
+
+def _state_json(state: "WealthAdvisorState", key: str) -> str:
+    """任意 state 键的 JSON 文本化（market_data / analysis_results 共用）。"""
+    return json.dumps(state.get(key, {}), ensure_ascii=False, indent=2)
 
 # 提示模板
 ASSESSMENT_PROMPT = """你是一个财富管理投顾AI助手的协调层。请评估以下用户查询，确定其类型和应该采用的处理模式。
@@ -329,10 +348,7 @@ def assess_query(state: WealthAdvisorState) -> WealthAdvisorState:
         prompt = ChatPromptTemplate.from_template(ASSESSMENT_PROMPT)
         
         # 构建输入
-        input_data = {
-            "user_query": state["user_query"],
-            "history_text": format_history(state.get("chat_history")),
-        }
+        input_data = _llm_inputs(state, user_query=state["user_query"])
 
         # 调用LLM
         chain = prompt | llm | JsonOutputParser()
@@ -375,30 +391,6 @@ def reactive_processing(state: WealthAdvisorState) -> WealthAdvisorState:
         # 构建提示模板
         # 改进点：把客户风险画像带入 prompt —— 此前反应式链路完全不看客户信息，
         # 导致 RiskConsideration 在上证（0.00）与 ETF（0.50）用例失分
-        REACTIVE_AGENT_PROMPT = """你是一个财富管理投顾AI助手，请根据用户的问题回答。
-
-你可以使用以下工具：
-- 上证指数查询: 用于查询上证指数的最新行情
-
-如果用户询问上证指数相关信息，请在回答中包含 [CALL_TOOL:上证指数查询] 标记。
-如果不需要使用工具，直接回答用户问题即可。
-
-客户信息: {customer_profile}
-
-对话历史:
-{history_text}
-
-用户问题: {input}
-
-要求：
-1. 直接回答问题，不要复述问题；用户查询含指代时结合对话历史理解
-2. 涉及具体数据时说明数据来源性质
-3. 回答末尾用一句话说明该结论与客户风险等级、投资期限的适配关系
-4. 全文不超过 400 字
-
-请提供专业、简洁、准确的回答。
-"""
-
         user_query = state["user_query"]
 
         # 客户画像压缩成一行文本，供 prompt 注入（缺字段时回退为"未知"）
@@ -412,11 +404,9 @@ def reactive_processing(state: WealthAdvisorState) -> WealthAdvisorState:
         # 第一轮：让LLM决定是否需要工具
         prompt = ChatPromptTemplate.from_template(REACTIVE_AGENT_PROMPT)
         chain = prompt | llm | StrOutputParser()
-        first_response = chain.invoke({
-            "input": user_query,
-            "customer_profile": profile_text,
-            "history_text": format_history(state.get("chat_history")),
-        })
+        first_response = chain.invoke(
+            _llm_inputs(state, input=user_query, customer_profile=profile_text)
+        )
 
         # 检查是否需要调用工具
         tools_called: List[Dict[str, Any]] = []
@@ -430,30 +420,11 @@ def reactive_processing(state: WealthAdvisorState) -> WealthAdvisorState:
             })
 
             # 构建最终回答的提示
-            # 改进点：强制首句结论 + 明确标注模拟数据 + 结合客户风险画像（三个改进点集中在此）
-            FINAL_PROMPT = """你是一个财富管理投顾AI助手。
-
-客户信息: {customer_profile}
-对话历史:
-{history_text}
-用户问题: {input}
-工具返回数据: {tool_result}
-
-要求：
-1. 首句直接给出结论（点位、涨跌点数、涨跌幅）
-2. 明确说明该数据为模拟数据、仅供参考，不构成投资建议
-3. 末尾用一句话说明该行情对客户当前配置（风险等级/投资期限）的含义
-4. 全文不超过 300 字
-"""
-            final_prompt = ChatPromptTemplate.from_template(FINAL_PROMPT)
+            final_prompt = ChatPromptTemplate.from_template(REACTIVE_FINAL_PROMPT)
             final_chain = final_prompt | llm | StrOutputParser()
             final_response = final_chain.invoke(
-                {
-                    "input": user_query,
-                    "tool_result": tool_result,
-                    "customer_profile": profile_text,
-                    "history_text": format_history(state.get("chat_history")),
-                }
+                _llm_inputs(state, input=user_query, tool_result=tool_result,
+                            customer_profile=profile_text)
             )
         else:
             final_response = first_response.replace("[CALL_TOOL:上证指数查询]", "").strip()
@@ -480,11 +451,9 @@ def collect_data(state: WealthAdvisorState) -> WealthAdvisorState:
         prompt = ChatPromptTemplate.from_template(DATA_COLLECTION_PROMPT)
         
         # 构建输入
-        input_data = {
-            "user_query": state["user_query"],
-            "customer_profile": json.dumps(state.get("customer_profile", {}), ensure_ascii=False, indent=2),
-            "history_text": format_history(state.get("chat_history")),
-        }
+        input_data = _llm_inputs(
+            state, user_query=state["user_query"], customer_profile=_profile_json(state)
+        )
 
         # 调用LLM
         chain = prompt | llm | JsonOutputParser()
@@ -519,12 +488,12 @@ def analyze_data(state: WealthAdvisorState) -> WealthAdvisorState:
         prompt = ChatPromptTemplate.from_template(ANALYSIS_PROMPT)
         
         # 构建输入
-        input_data = {
-            "user_query": state["user_query"],
-            "customer_profile": json.dumps(state.get("customer_profile", {}), ensure_ascii=False, indent=2),
-            "market_data": json.dumps(state.get("market_data", {}), ensure_ascii=False, indent=2),
-            "history_text": format_history(state.get("chat_history")),
-        }
+        input_data = _llm_inputs(
+            state,
+            user_query=state["user_query"],
+            customer_profile=_profile_json(state),
+            market_data=_state_json(state, "market_data"),
+        )
         
         # 调用LLM
         chain = prompt | llm | JsonOutputParser()
@@ -560,12 +529,12 @@ def generate_recommendations(state: WealthAdvisorState) -> WealthAdvisorState:
         prompt = ChatPromptTemplate.from_template(RECOMMENDATION_PROMPT)
         
         # 构建输入
-        input_data = {
-            "user_query": state["user_query"],
-            "customer_profile": json.dumps(state.get("customer_profile", {}), ensure_ascii=False, indent=2),
-            "analysis_results": json.dumps(state.get("analysis_results", {}), ensure_ascii=False, indent=2),
-            "history_text": format_history(state.get("chat_history")),
-        }
+        input_data = _llm_inputs(
+            state,
+            user_query=state["user_query"],
+            customer_profile=_profile_json(state),
+            analysis_results=_state_json(state, "analysis_results"),
+        )
         
         # 调用LLM
         chain = prompt | llm | StrOutputParser()
@@ -672,6 +641,46 @@ def create_wealth_advisor_workflow() -> StateGraph:
     
     # 编译工作流
     return workflow.compile()
+
+# reactive 节点两条链的 prompt 模板（自函数体内提取为模块级，文本逐字保留）
+REACTIVE_AGENT_PROMPT = """你是一个财富管理投顾AI助手，请根据用户的问题回答。
+
+你可以使用以下工具：
+- 上证指数查询: 用于查询上证指数的最新行情
+
+如果用户询问上证指数相关信息，请在回答中包含 [CALL_TOOL:上证指数查询] 标记。
+如果不需要使用工具，直接回答用户问题即可。
+
+客户信息: {customer_profile}
+
+对话历史:
+{history_text}
+
+用户问题: {input}
+
+要求：
+1. 直接回答问题，不要复述问题；用户查询含指代时结合对话历史理解
+2. 涉及具体数据时说明数据来源性质
+3. 回答末尾用一句话说明该结论与客户风险等级、投资期限的适配关系
+4. 全文不超过 400 字
+
+请提供专业、简洁、准确的回答。
+"""
+
+REACTIVE_FINAL_PROMPT = """你是一个财富管理投顾AI助手。
+
+客户信息: {customer_profile}
+对话历史:
+{history_text}
+用户问题: {input}
+工具返回数据: {tool_result}
+
+要求：
+1. 首句直接给出结论（点位、涨跌点数、涨跌幅）
+2. 明确说明该数据为模拟数据、仅供参考，不构成投资建议
+3. 末尾用一句话说明该行情对客户当前配置（风险等级/投资期限）的含义
+4. 全文不超过 300 字
+"""
 
 # 示例客户画像数据
 SAMPLE_CUSTOMER_PROFILES = {

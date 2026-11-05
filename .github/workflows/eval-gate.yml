@@ -39,28 +39,39 @@ jobs:
 
       - name: 默认模型不得指向已耗尽额度模型
         run: |
-          # 每次模型 403 后把它的默认值加入禁用清单；
-          # 模式以完整 ") 结尾——deepseek-v4.1-flash 与已死的 -1017 前缀重叠，避免误杀
-          ! grep -rn 'getenv("AGENT_MODEL", "qwen'  --include="*.py" .
-          ! grep -rn 'getenv("JUDGE_MODEL", "qwen'  --include="*.py" .
-          ! grep -rn 'getenv("AGENT_MODEL", "deepseek-v4.1-flash-1017")' --include="*.py" .
-          ! grep -rn 'getenv("JUDGE_MODEL", "deepseek-v4.1-flash-1017")' --include="*.py" .
-          ! grep -rn 'getenv("AGENT_MODEL", "deepseek-v4-pro-0813")' --include="*.py" .
-          ! grep -rn 'getenv("JUDGE_MODEL", "deepseek-v4-pro-0813")' --include="*.py" .
-          ! grep -rn 'getenv("AGENT_MODEL", "glm-5.3")' --include="*.py" .
-          ! grep -rn 'getenv("JUDGE_MODEL", "glm-5.3")' --include="*.py" .
-          ! grep -rn 'getenv("AGENT_MODEL", "deepseek-v4.1-flash")' --include="*.py" .
-          ! grep -rn 'getenv("JUDGE_MODEL", "deepseek-v4.1-flash")' --include="*.py" .
-          ! grep -rn 'getenv("AGENT_MODEL", "kimi-k3")' --include="*.py" .
-          ! grep -rn 'getenv("JUDGE_MODEL", "kimi-k3")' --include="*.py" .
+          # 每次模型 403 后把它的名字加入 DEAD_MODELS。
+          # 历史教训（重构期发现）：旧实现是逐行 `! grep` 排列，bash -e 豁免 `!`
+          # 前缀命令，只有最后一行真正生效——禁用清单形同虚设。现改为显式循环。
+          # 注意用具体模型名而非系名前缀（qwen 系里有活模型 omni-flash）。
+          DEAD_MODELS=(
+            "qwen-flash" "qwen-plus" "qwen3.8-2.4t-a95b" "qwen3.8-max-0902"
+            "qwen3.8-omni-flash"
+            "deepseek-v4.1-flash-1017" "deepseek-v4-pro-0813"
+            "glm-5.3" "deepseek-v4.1-flash" "kimi-k3"
+          )
+          found=0
+          for dead in "${DEAD_MODELS[@]}"; do
+            for var in AGENT_MODEL JUDGE_MODEL; do
+              if grep -rq "getenv(\"${var}\", \"${dead}\")" --include="*.py" .; then
+                echo "::error::默认模型 ${var}=${dead} 已耗尽额度（403），请迁移默认值并把 ${dead} 加入本清单"
+                found=1
+              fi
+            done
+          done
+          exit $found
+
+      - name: 离线特征测试与规格测试（零额度，秒级）
+        run: |
+          pip install pytest
+          python -m pytest tests/ -q
 
   llm-gate:
     runs-on: ubuntu-latest
     needs: static-checks
     env:
       DASHSCOPE_API_KEY: ${{ secrets.DASHSCOPE_API_KEY }}
-      AGENT_MODEL: ${{ vars.AGENT_MODEL || 'qwen3.8-omni-flash' }}
-      JUDGE_MODEL: ${{ vars.JUDGE_MODEL || 'qwen3.8-omni-flash' }}
+      AGENT_MODEL: ${{ vars.AGENT_MODEL || 'kimi-k3.1-pro' }}
+      JUDGE_MODEL: ${{ vars.JUDGE_MODEL || 'kimi-k3.1-pro' }}
     steps:
       - uses: actions/checkout@v4
 

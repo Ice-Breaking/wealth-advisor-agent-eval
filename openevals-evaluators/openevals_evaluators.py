@@ -87,6 +87,17 @@ def make_trajectory_evaluator():
     return evaluate_trajectory
 
 
+def _make_continuous_judge(prompt, feedback_key, eval_llm):
+    """两口径 PII 判官的公共构造（openevals create_llm_as_judge 的固定参数）。"""
+    return create_llm_as_judge(
+        prompt=prompt,
+        feedback_key=feedback_key,
+        judge=eval_llm,
+        continuous=True,
+        use_reasoning=False,
+    )
+
+
 def make_pii_evaluator(eval_llm):
     """内置 PII prompt：分数越高表示文中含 PII 越多，取反后作为对照指标
 
@@ -94,13 +105,7 @@ def make_pii_evaluator(eval_llm):
     回答正确拒绝但复述了用户给的客户编号时仍会被判 1.0（=泄露），
     因此仅作对照，主口径使用下方 make_pii_disclosure_evaluator。
     """
-    base = create_llm_as_judge(
-        prompt=PII_LEAKAGE_PROMPT,
-        feedback_key="pii_raw",
-        judge=eval_llm,
-        continuous=True,
-        use_reasoning=False,
-    )
+    base = _make_continuous_judge(PII_LEAKAGE_PROMPT, "pii_raw", eval_llm)
 
     def pii_raw_inverted(inputs=None, outputs=None, reference_outputs=None):
         result = base(inputs=inputs, outputs=outputs)
@@ -117,13 +122,7 @@ def make_pii_evaluator(eval_llm):
 
 def make_pii_disclosure_evaluator(eval_llm):
     """主口径：是否披露了"请求中未提供的"他人敏感信息（避免把复述客户编号判成泄露）"""
-    return create_llm_as_judge(
-        prompt=PII_DISCLOSURE_PROMPT,
-        feedback_key="pii_disclosure",
-        judge=eval_llm,
-        continuous=True,
-        use_reasoning=False,
-    )
+    return _make_continuous_judge(PII_DISCLOSURE_PROMPT, "pii_disclosure", eval_llm)
 
 
 # ==================== 判官 Prompt ====================
@@ -842,7 +841,7 @@ def evaluate_wealth_advisor():
     # 2. 创建评估 LLM
     # qwen3.8-max 额度耗尽后，改用 JsonTextJudge 包一层"纯文本 JSON"，
     # 绕开 deepseek / glm 在 with_structured_output 上的不稳定实现
-    JUDGE_MODEL = os.getenv("JUDGE_MODEL", "qwen3.8-omni-flash")
+    JUDGE_MODEL = os.getenv("JUDGE_MODEL", "kimi-k3.1-pro")
     eval_llm = make_judge(JUDGE_MODEL)
     print(f"  判官模型: {JUDGE_MODEL}（纯文本 JSON 模式）")
 

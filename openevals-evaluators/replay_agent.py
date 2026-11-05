@@ -79,7 +79,7 @@ def main():
     payload = {
         "agent_file": agent_path,
         "replayed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "agent_model": os.getenv("AGENT_MODEL", "qwen3.8-omni-flash"),
+        "agent_model": os.getenv("AGENT_MODEL", "kimi-k3.1-pro"),
         "cases": results,
     }
     with open(out_path, "w", encoding="utf-8") as fh:
